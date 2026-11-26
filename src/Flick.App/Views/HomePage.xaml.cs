@@ -1,9 +1,18 @@
-using System.Collections.Specialized;
+using Flick.Core.Keyboard;
+using Flick.Core.Knock;
 using Flick.Core.Models;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 
 namespace Flick.App.Views;
+
+public sealed record DashboardRuleItem(
+    string Id,
+    string Glyph,
+    string Name,
+    string ScopeLabel,
+    string Summary,
+    bool IsEnabled);
 
 public sealed partial class HomePage : Page
 {
@@ -18,84 +27,107 @@ public sealed partial class HomePage : Page
 
     private void HomePage_Loaded(object sender, RoutedEventArgs e)
     {
-        RefreshStats();
-        RefreshSessionStats();
-        App.Engine.ProfileChanged += RefreshStats;
-        App.Engine.RecentActivity.CollectionChanged += RecentActivity_CollectionChanged;
+        RefreshDashboard();
+        App.Engine.ProfileChanged += RefreshDashboard;
     }
 
     private void HomePage_Unloaded(object sender, RoutedEventArgs e)
     {
-        App.Engine.ProfileChanged -= RefreshStats;
-        App.Engine.RecentActivity.CollectionChanged -= RecentActivity_CollectionChanged;
+        App.Engine.ProfileChanged -= RefreshDashboard;
     }
 
-    private void RecentActivity_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
-    {
-        RefreshSessionStats();
-    }
-
-    private void RefreshStats()
+    private void RefreshDashboard()
     {
         var profile = App.Engine.Profile;
         var s = profile.Settings;
 
         _suppressToggle = true;
         EngineToggle.IsOn = s.IsEnabled;
+        TouchpadQuickToggle.IsOn = s.EnableTouchpadGestures;
+        ChordQuickToggle.IsOn = s.EnableKeyboardChords;
+        KnockQuickToggle.IsOn = s.EnableKnockDetection;
         _suppressToggle = false;
 
         StatusTitleText.Text = s.IsEnabled ? "Flick Engine Active" : "Flick Engine Paused";
         StatusPillText.Text = s.IsEnabled ? "LIVE" : "PAUSED";
+        StatusSubtitleText.Text = s.IsEnabled
+            ? $"Mouse ({s.TriggerButton} drag, {s.MinimumStrokeLength:0} px) and enabled trigger engines are listening."
+            : "Toggle the switch to resume global trigger recognition.";
 
-        if (s.IsEnabled)
-        {
-            var activeTriggers = new List<string> { "Mouse" };
-            if (s.EnableTouchpadGestures) activeTriggers.Add("Touchpad");
-            if (s.EnableKeyboardChords) activeTriggers.Add("Keyboard Chords");
-            if (s.EnableKnockDetection) activeTriggers.Add("Acoustic Knock");
-            StatusSubtitleText.Text = $"Listening: {string.Join(" • ", activeTriggers)}";
-        }
-        else
-        {
-            StatusSubtitleText.Text = "Toggle the switch to resume global trigger recognition.";
-        }
-
-        int enabledRules = profile.Rules.Count(r => r.IsEnabled);
-        int scopeCount = profile.Scopes.Count;
-        ActiveRulesCountText.Text = enabledRules.ToString();
-        TotalRulesSubText.Text = $"{profile.Rules.Count} total • Global{(scopeCount > 0 ? $" + {scopeCount} app scope(s)" : "")}";
-
-        int gestureRules = profile.Rules.Count(r => r.IsEnabled && r.TriggerType == TriggerType.Gesture && r.InputSource != GestureInputSource.Touchpad);
-        int touchpadRules = profile.Rules.Count(r => r.IsEnabled && r.TriggerType == TriggerType.Gesture && r.InputSource == GestureInputSource.Touchpad);
+        int tpRules = profile.Rules.Count(r => r.IsEnabled && r.TriggerType == TriggerType.Gesture && r.InputSource == GestureInputSource.Touchpad);
         int chordRules = profile.Rules.Count(r => r.IsEnabled && r.TriggerType == TriggerType.KeyboardChord);
         int knockRules = profile.Rules.Count(r => r.IsEnabled && r.TriggerType == TriggerType.KnockPattern);
 
-        TriggerButtonText.Text = $"{s.TriggerButton} Button";
-        TriggerSubText.Text = $"{s.MinimumStrokeLength:0} px min drag • {gestureRules} rule(s)";
-
-        TouchpadStatusText.Text = s.EnableTouchpadGestures ? "2–5 Fingers" : "Disabled";
         TouchpadSubText.Text = App.Engine.IsTouchpadDetected
-            ? $"Precision Touchpad ready • {touchpadRules} rule(s)"
-            : $"Waiting for touchpad • {touchpadRules} rule(s)";
+            ? $"Precision Touchpad ready • {tpRules} active rule(s)"
+            : $"2–5 finger gestures • {tpRules} active rule(s)";
+        ChordSubText.Text = $"Simultaneous & sequential • {chordRules} active rule(s)";
+        KnockSubText.Text = $"{s.KnockSurfaces.Count} calibrated surface(s) • {knockRules} active rule(s)";
 
-        ChordStatusText.Text = s.EnableKeyboardChords ? "Active" : "Disabled";
-        ChordSubText.Text = $"Simultaneous & Sequential • {chordRules} rule(s)";
+        var gestureMap = profile.Gestures.ToDictionary(g => g.Id, g => g);
+        var items = new List<DashboardRuleItem>();
+        foreach (var rule in profile.Rules)
+        {
+            string glyph;
+            string triggerLabel;
+            if (rule.TriggerType == TriggerType.KeyboardChord)
+            {
+                glyph = "\uE765";
+                triggerLabel = ChordKeyHelper.FormatChord(rule.KeyboardChord);
+            }
+            else if (rule.TriggerType == TriggerType.KnockPattern)
+            {
+                glyph = "\uE720";
+                triggerLabel = KnockPatternMatcher.FormatPattern(rule.KnockPattern);
+            }
+            else
+            {
+                glyph = rule.InputSource == GestureInputSource.Touchpad ? "\uE815" : "\uE962";
+                triggerLabel = gestureMap.TryGetValue(rule.GestureId, out var g) ? g.Name : "Gesture";
+            }
 
-        KnockStatusText.Text = s.EnableKnockDetection ? "Listening" : "Off";
-        KnockSubText.Text = $"{s.KnockSurfaces.Count} surface(s) calibrated • {knockRules} rule(s)";
-    }
+            string scope = rule.IsGlobal ? "Global" : rule.ApplicationFilter;
+            items.Add(new DashboardRuleItem(
+                rule.Id,
+                glyph,
+                string.IsNullOrWhiteSpace(rule.Name) ? "Untitled" : rule.Name,
+                scope,
+                $"{triggerLabel}  →  {rule.ActionType}: {rule.ActionPayload}",
+                rule.IsEnabled));
+        }
 
-    private void RefreshSessionStats()
-    {
-        var items = App.Engine.RecentActivity;
-        SessionCountText.Text = items.Count.ToString();
-        SessionSubText.Text = $"{items.Count(a => a.Executed)} actions executed this session";
+        int enabledCount = profile.Rules.Count(r => r.IsEnabled);
+        RulesSummaryText.Text = $"{enabledCount} of {profile.Rules.Count} enabled";
+        EmptyRulesText.Visibility = items.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+
+        _suppressToggle = true;
+        ActiveRulesList.ItemsSource = items;
+        _suppressToggle = false;
     }
 
     private void EngineToggle_Toggled(object sender, RoutedEventArgs e)
     {
         if (_suppressToggle) return;
         App.Engine.Profile.Settings.IsEnabled = EngineToggle.IsOn;
+        App.Engine.SaveProfile();
+    }
+
+    private void TriggerQuickToggle_Toggled(object sender, RoutedEventArgs e)
+    {
+        if (_suppressToggle) return;
+        var s = App.Engine.Profile.Settings;
+        s.EnableTouchpadGestures = TouchpadQuickToggle.IsOn;
+        s.EnableKeyboardChords = ChordQuickToggle.IsOn;
+        s.EnableKnockDetection = KnockQuickToggle.IsOn;
+        App.Engine.SaveProfile();
+    }
+
+    private void RuleQuickToggle_Toggled(object sender, RoutedEventArgs e)
+    {
+        if (_suppressToggle || sender is not ToggleSwitch ts || ts.Tag is not string id) return;
+        var rule = App.Engine.Profile.Rules.FirstOrDefault(r => r.Id == id);
+        if (rule is null) return;
+        rule.IsEnabled = ts.IsOn;
         App.Engine.SaveProfile();
     }
 }

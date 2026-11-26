@@ -5,7 +5,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
     <ScrollViewer VerticalScrollBarVisibility="Auto">
-        <Grid RowSpacing="18" MaxWidth="980" Padding="0,0,4,12">
+        <Grid RowSpacing="16" MaxWidth="980" Padding="0,0,16,16">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
@@ -16,7 +16,7 @@
             <!-- Page Header -->
             <StackPanel Grid.Row="0" Spacing="2">
                 <TextBlock Text="Dashboard" Style="{StaticResource TitleTextBlockStyle}" />
-                <TextBlock Text="Overview of your trigger engines, active rules, and calibrated surfaces." Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                <TextBlock Text="Control trigger engines and view your active shortcuts at a glance." Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
             </StackPanel>
 
             <!-- Hero Status Card -->
@@ -52,7 +52,7 @@
                                 <TextBlock x:Name="StatusPillText" Text="LIVE" Style="{StaticResource CaptionTextBlockStyle}" FontWeight="SemiBold" />
                             </Border>
                         </StackPanel>
-                        <TextBlock x:Name="StatusSubtitleText" Text="All enabled trigger engines are listening." Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
+                        <TextBlock x:Name="StatusSubtitleText" Text="Listening for triggers." Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
                     </StackPanel>
 
                     <ToggleSwitch
@@ -65,125 +65,121 @@
                 </Grid>
             </Border>
 
-            <!-- 2x2 Trigger Engines Grid -->
-            <Grid Grid.Row="2" RowSpacing="14" ColumnSpacing="14">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                </Grid.RowDefinitions>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="*" />
-                </Grid.ColumnDefinitions>
+            <!-- Interactive Trigger Engines -->
+            <Border
+                Grid.Row="2"
+                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="1"
+                CornerRadius="10"
+                Padding="18,14">
+                <StackPanel Spacing="10">
+                    <TextBlock Text="Trigger Engines" Style="{StaticResource BodyStrongTextBlockStyle}" />
 
-                <!-- Mouse Gestures -->
-                <Border Grid.Row="0" Grid.Column="0" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="10" Padding="18,16">
-                    <Grid ColumnSpacing="14">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
-                        <Border Width="40" Height="40" CornerRadius="8" Background="{ThemeResource SubtleFillColorSecondaryBrush}" VerticalAlignment="Top">
-                            <FontIcon Glyph="&#xE962;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
-                        </Border>
-                        <StackPanel Grid.Column="1" Spacing="4">
-                            <TextBlock Text="Mouse Gestures" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                            <TextBlock x:Name="TriggerButtonText" Text="Right Button" Style="{StaticResource SubtitleTextBlockStyle}" />
-                            <TextBlock x:Name="TriggerSubText" Text="28 px min drag" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
-                        </StackPanel>
-                    </Grid>
-                </Border>
-
-                <!-- Precision Touchpad -->
-                <Border Grid.Row="0" Grid.Column="1" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="10" Padding="18,16">
-                    <Grid ColumnSpacing="14">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
-                        <Border Width="40" Height="40" CornerRadius="8" Background="{ThemeResource SubtleFillColorSecondaryBrush}" VerticalAlignment="Top">
-                            <FontIcon Glyph="&#xE815;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
-                        </Border>
-                        <StackPanel Grid.Column="1" Spacing="4">
-                            <TextBlock Text="Precision Touchpad" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                            <TextBlock x:Name="TouchpadStatusText" Text="2–5 Fingers" Style="{StaticResource SubtitleTextBlockStyle}" />
-                            <TextBlock x:Name="TouchpadSubText" Text="Precision Touchpad ready" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
-                        </StackPanel>
-                    </Grid>
-                </Border>
-
-                <!-- Keyboard Chords -->
-                <Border Grid.Row="1" Grid.Column="0" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="10" Padding="18,16">
-                    <Grid ColumnSpacing="14">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
-                        <Border Width="40" Height="40" CornerRadius="8" Background="{ThemeResource SubtleFillColorSecondaryBrush}" VerticalAlignment="Top">
-                            <FontIcon Glyph="&#xE765;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
-                        </Border>
-                        <StackPanel Grid.Column="1" Spacing="4">
-                            <TextBlock Text="Keyboard Chords" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                            <TextBlock x:Name="ChordStatusText" Text="Active" Style="{StaticResource SubtitleTextBlockStyle}" />
-                            <TextBlock x:Name="ChordSubText" Text="Simultaneous &amp; Sequential" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
-                        </StackPanel>
-                    </Grid>
-                </Border>
-
-                <!-- Acoustic Knock Detection -->
-                <Border Grid.Row="1" Grid.Column="1" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="10" Padding="18,16">
-                    <Grid ColumnSpacing="14">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
-                        <Border Width="40" Height="40" CornerRadius="8" Background="{ThemeResource SubtleFillColorSecondaryBrush}" VerticalAlignment="Top">
-                            <FontIcon Glyph="&#xE720;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
-                        </Border>
-                        <StackPanel Grid.Column="1" Spacing="4">
-                            <TextBlock Text="Acoustic Knock Detection" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                            <TextBlock x:Name="KnockStatusText" Text="Off" Style="{StaticResource SubtitleTextBlockStyle}" />
-                            <TextBlock x:Name="KnockSubText" Text="0 calibrated surfaces" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
-                        </StackPanel>
-                    </Grid>
-                </Border>
-            </Grid>
-
-            <!-- Summary Strip -->
-            <Grid Grid.Row="3" ColumnSpacing="14">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="*" />
-                </Grid.ColumnDefinitions>
-
-                <Border Grid.Column="0" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="10" Padding="18,14">
+                    <!-- Touchpad -->
                     <Grid ColumnSpacing="12">
                         <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
-                        <StackPanel Spacing="2" VerticalAlignment="Center">
-                            <TextBlock Text="Configured Actions" Style="{StaticResource BodyStrongTextBlockStyle}" />
-                            <TextBlock x:Name="TotalRulesSubText" Text="0 total across Global" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        <FontIcon Grid.Column="0" Glyph="&#xE815;" FontSize="16" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                            <TextBlock Text="Precision Touchpad" Style="{StaticResource BodyTextBlockStyle}" FontWeight="SemiBold" />
+                            <TextBlock x:Name="TouchpadSubText" Text="2–5 finger swipes, taps, and pinches" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                         </StackPanel>
-                        <TextBlock x:Name="ActiveRulesCountText" Grid.Column="1" Text="0" Style="{StaticResource TitleTextBlockStyle}" VerticalAlignment="Center" />
+                        <ToggleSwitch x:Name="TouchpadQuickToggle" Grid.Column="2" OnContent="" OffContent="" MinWidth="0" Toggled="TriggerQuickToggle_Toggled" />
                     </Grid>
-                </Border>
 
-                <Border Grid.Column="1" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="10" Padding="18,14">
+                    <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
+
+                    <!-- Keyboard Chords -->
                     <Grid ColumnSpacing="12">
                         <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
-                        <StackPanel Spacing="2" VerticalAlignment="Center">
-                            <TextBlock Text="Session Triggers" Style="{StaticResource BodyStrongTextBlockStyle}" />
-                            <TextBlock x:Name="SessionSubText" Text="0 actions executed" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        <FontIcon Grid.Column="0" Glyph="&#xE765;" FontSize="16" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                            <TextBlock Text="Keyboard Chords" Style="{StaticResource BodyTextBlockStyle}" FontWeight="SemiBold" />
+                            <TextBlock x:Name="ChordSubText" Text="Simultaneous &amp; sequential modifier chords" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                         </StackPanel>
-                        <TextBlock x:Name="SessionCountText" Grid.Column="1" Text="0" Style="{StaticResource TitleTextBlockStyle}" VerticalAlignment="Center" />
+                        <ToggleSwitch x:Name="ChordQuickToggle" Grid.Column="2" OnContent="" OffContent="" MinWidth="0" Toggled="TriggerQuickToggle_Toggled" />
                     </Grid>
-                </Border>
-            </Grid>
+
+                    <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
+
+                    <!-- Acoustic Knock -->
+                    <Grid ColumnSpacing="12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <FontIcon Grid.Column="0" Glyph="&#xE720;" FontSize="16" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                            <TextBlock Text="Acoustic Knock Detection" Style="{StaticResource BodyTextBlockStyle}" FontWeight="SemiBold" />
+                            <TextBlock x:Name="KnockSubText" Text="Surface-calibrated knock patterns" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        </StackPanel>
+                        <ToggleSwitch x:Name="KnockQuickToggle" Grid.Column="2" OnContent="" OffContent="" MinWidth="0" Toggled="TriggerQuickToggle_Toggled" />
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- Active Rules Cheat-Sheet -->
+            <Border
+                Grid.Row="3"
+                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="1"
+                CornerRadius="10"
+                Padding="18,14">
+                <StackPanel Spacing="10">
+                    <Grid>
+                        <TextBlock Text="Active Triggers &amp; Actions" Style="{StaticResource BodyStrongTextBlockStyle}" VerticalAlignment="Center" />
+                        <TextBlock x:Name="RulesSummaryText" HorizontalAlignment="Right" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
+                    </Grid>
+
+                    <TextBlock
+                        x:Name="EmptyRulesText"
+                        Text="No active rules yet. Select Global or an App Scope on the left to add gestures, chords, or knock patterns."
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        TextWrapping="Wrap"
+                        Visibility="Collapsed" />
+
+                    <ItemsControl x:Name="ActiveRulesList">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Margin="0,3" Padding="10,8" CornerRadius="6" Background="{ThemeResource SubtleFillColorSecondaryBrush}">
+                                    <Grid ColumnSpacing="10">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <FontIcon Grid.Column="0" Glyph="{Binding Glyph}" FontSize="15" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" />
+
+                                        <StackPanel Grid.Column="1" Spacing="1" VerticalAlignment="Center">
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <TextBlock Text="{Binding Name}" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                                                <Border Background="{ThemeResource SubtleFillColorTertiaryBrush}" CornerRadius="4" Padding="6,1">
+                                                    <TextBlock Text="{Binding ScopeLabel}" Style="{StaticResource CaptionTextBlockStyle}" />
+                                                </Border>
+                                            </StackPanel>
+                                            <TextBlock Text="{Binding Summary}" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" />
+                                        </StackPanel>
+
+                                        <ToggleSwitch Grid.Column="2" IsOn="{Binding IsEnabled, Mode=OneWay}" OnContent="" OffContent="" MinWidth="0" Tag="{Binding Id}" Toggled="RuleQuickToggle_Toggled" />
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
         </Grid>
     </ScrollViewer>
 </Page>
