@@ -46,7 +46,6 @@ public sealed partial class HomePage : Page
         _suppressToggle = false;
 
         StatusTitleText.Text = s.IsEnabled ? "Flick Engine Active" : "Flick Engine Paused";
-        StatusPillText.Text = s.IsEnabled ? "LIVE" : "PAUSED";
         StatusSubtitleText.Text = s.IsEnabled
             ? "Listening for enabled triggers."
             : "All triggers are paused.";

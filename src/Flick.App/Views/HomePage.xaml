@@ -44,13 +44,8 @@
                 </Border>
 
                 <StackPanel Grid.Column="1" Spacing="3" VerticalAlignment="Center">
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <TextBlock x:Name="StatusTitleText" Text="Flick Engine Active" Style="{StaticResource SubtitleTextBlockStyle}" />
-                        <Border x:Name="StatusPill" CornerRadius="10" Padding="8,2" Background="{ThemeResource SubtleFillColorSecondaryBrush}" VerticalAlignment="Center">
-                            <TextBlock x:Name="StatusPillText" Text="LIVE" Style="{StaticResource CaptionTextBlockStyle}" FontWeight="SemiBold" />
-                        </Border>
-                    </StackPanel>
-                    <TextBlock x:Name="StatusSubtitleText" Text="Listening for triggers." Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
+                    <TextBlock x:Name="StatusTitleText" Text="Flick Engine Active" Style="{StaticResource SubtitleTextBlockStyle}" />
+                    <TextBlock x:Name="StatusSubtitleText" Text="Listening for enabled triggers." Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
                 </StackPanel>
 
                 <ToggleSwitch
