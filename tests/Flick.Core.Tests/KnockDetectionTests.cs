@@ -91,10 +91,10 @@ public sealed class KnockDetectionTests
     public void OnsetDetector_DetectsDoubleKnockAndIgnoresHum()
     {
         const int sr = 48000;
-        var detector = new KnockOnsetDetector(sr) { Sensitivity = 0.7 };
+        var detector = new KnockOnsetDetector(sr, warmupMs: 200) { Sensitivity = 0.7 };
 
-        // 600 ms buffer with 50 Hz hum + two knocks at 100 ms and 300 ms
-        int totalSamples = (int)(sr * 0.6);
+        // 800 ms buffer with 50 Hz hum + two knocks after warmup at 350 ms and 550 ms
+        int totalSamples = (int)(sr * 0.8);
         var audio = new float[totalSamples];
         for (int i = 0; i < totalSamples; i++)
         {
@@ -103,10 +103,10 @@ public sealed class KnockDetectionTests
 
         var k1 = SynthesizeKnock(sr, 900, 1800, 90, 0.5f);
         var k2 = SynthesizeKnock(sr, 900, 1800, 90, 0.5f);
-        Array.Copy(k1, 0, audio, (int)(sr * 0.10), k1.Length);
-        Array.Copy(k2, 0, audio, (int)(sr * 0.30), k2.Length);
+        Array.Copy(k1, 0, audio, (int)(sr * 0.35), k1.Length);
+        Array.Copy(k2, 0, audio, (int)(sr * 0.55), k2.Length);
 
-        var events = detector.ProcessSamples(audio, 600);
+        var events = detector.ProcessSamples(audio, 800);
         Assert.Equal(2, events.Count);
         Assert.InRange(events[1].TimestampMs - events[0].TimestampMs, 160, 240);
     }

@@ -6,8 +6,8 @@ public sealed record KnockOnsetEvent(
     float PeakAmplitude);
 
 /// <summary>
-/// Real-time high-pass filtered transient detector with adaptive noise floor
-/// and post-onset window capture for acoustic surface classification.
+/// Real-time high-pass filtered percussive transient detector with mic warmup,
+/// adaptive noise floor, and post-onset window capture for acoustic surface classification.
 /// </summary>
 public sealed class KnockOnsetDetector
 {
@@ -20,12 +20,12 @@ public sealed class KnockOnsetDetector
     private int _ringWriteIdx;
     private long _totalSamplesProcessed;
 
-    private float _noiseFloorRms = 0.002f;
-    private float _prevHopRms = 0.002f;
+    private float _noiseFloorRms = 0.005f;
+    private float _prevHopRms = 0.005f;
     private long _lastOnsetSample = -100_000;
+    private readonly int _warmupSamples;
 
     private bool _capturingWindow;
-    private long _capturePeakSample;
     private float _capturePeakAmp;
     private long _captureEndSample;
     private long _captureTimestampMs;
@@ -35,11 +35,13 @@ public sealed class KnockOnsetDetector
     /// </summary>
     public double Sensitivity { get; set; } = 0.65;
 
-    public int RefractoryMs { get; set; } = 75;
+    public int RefractoryMs { get; set; } = 130;
 
-    public KnockOnsetDetector(int sampleRate = 48000)
+    public KnockOnsetDetector(int sampleRate = 48000, int warmupMs = 250)
     {
         _sampleRate = Math.Max(8000, sampleRate);
+        _warmupSamples = (int)(_sampleRate * (Math.Max(0, warmupMs) / 1000.0));
+
         // 1st-order high-pass filter at ~80 Hz
         double rc = 1.0 / (2.0 * Math.PI * 80.0);
         double dt = 1.0 / _sampleRate;
@@ -55,9 +57,9 @@ public sealed class KnockOnsetDetector
         if (monoSamples.Length == 0) return events;
 
         double sens = Math.Clamp(Sensitivity, 0.1, 1.0);
-        // Thresholds scale inversely with sensitivity
-        float minPeakThreshold = (float)(0.015 + (1.0 - sens) * 0.085); // 0.015 .. 0.10
-        float snrMultiplier = (float)(3.2 + (1.0 - sens) * 5.0);      // 3.2x .. 8.2x noise floor
+        // Realistic thresholds: at 0.65 sensitivity -> peak >= 0.175, SNR >= 6.4x noise floor
+        float minPeakThreshold = (float)(0.08 + (1.0 - sens) * 0.27);
+        float snrMultiplier = (float)(4.5 + (1.0 - sens) * 5.5);
         int refractorySamples = (int)(_sampleRate * (RefractoryMs / 1000.0));
         int postSamples = (int)(_sampleRate * 0.045);
         int preSamples = (int)(_sampleRate * 0.005);
@@ -103,28 +105,36 @@ public sealed class KnockOnsetDetector
             if (hopCount >= hopSize)
             {
                 float hopRms = (float)Math.Sqrt(hopSumSq / hopCount);
-                float crest = hopRms > 1e-6f ? hopPeak / hopRms : 0f;
+                bool warmedUp = _totalSamplesProcessed >= _warmupSamples;
 
-                bool pastRefractory = (_totalSamplesProcessed - _lastOnsetSample) >= refractorySamples;
-                bool hasSharpAttack = crest >= 1.4f || hopRms >= _prevHopRms * 1.8f;
-                bool isTransient = hopPeak >= minPeakThreshold &&
-                                   hopRms >= _noiseFloorRms * snrMultiplier &&
-                                   hasSharpAttack;
-
-                if (!_capturingWindow && pastRefractory && isTransient)
+                if (!warmedUp)
                 {
-                    _capturingWindow = true;
-                    _capturePeakSample = _totalSamplesProcessed;
-                    _capturePeakAmp = hopPeak;
-                    _captureEndSample = _totalSamplesProcessed + postSamples;
-                    long offsetMs = (long)((monoSamples.Length - 1 - i) * 1000.0 / _sampleRate);
-                    _captureTimestampMs = chunkEndTimestampMs - offsetMs;
-                    _lastOnsetSample = _totalSamplesProcessed;
+                    // Measure initial ambient noise floor during mic startup
+                    _noiseFloorRms = 0.85f * _noiseFloorRms + 0.15f * Math.Max(0.001f, hopRms);
                 }
-                else if (!_capturingWindow && hopRms < _noiseFloorRms * 2.5f)
+                else
                 {
-                    // Slowly adapt noise floor only during quiet periods
-                    _noiseFloorRms = 0.96f * _noiseFloorRms + 0.04f * Math.Max(0.0005f, hopRms);
+                    bool pastRefractory = (_totalSamplesProcessed - _lastOnsetSample) >= refractorySamples;
+                    bool sharpAttack = hopRms >= _prevHopRms * 2.2f;
+                    bool isTransient = hopPeak >= minPeakThreshold &&
+                                       hopRms >= _noiseFloorRms * snrMultiplier &&
+                                       sharpAttack;
+
+                    if (!_capturingWindow && pastRefractory && isTransient)
+                    {
+                        _capturingWindow = true;
+                        _capturePeakAmp = hopPeak;
+                        _captureEndSample = _totalSamplesProcessed + postSamples;
+                        long offsetMs = (long)((monoSamples.Length - 1 - i) * 1000.0 / _sampleRate);
+                        _captureTimestampMs = chunkEndTimestampMs - offsetMs;
+                        _lastOnsetSample = _totalSamplesProcessed;
+                    }
+                    else if (!_capturingWindow)
+                    {
+                        // Continuously adapt noise floor (slower upward so transients don't skew it, faster when quiet)
+                        float alpha = hopRms > _noiseFloorRms ? 0.015f : 0.04f;
+                        _noiseFloorRms = (1f - alpha) * _noiseFloorRms + alpha * Math.Max(0.001f, hopRms);
+                    }
                 }
 
                 _prevHopRms = hopRms;
