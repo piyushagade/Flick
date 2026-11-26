@@ -1748,12 +1748,18 @@ public sealed partial class RulesPage : Page
                 ? "● Recording Sequential — start with Modifier+Key (e.g. Ctrl+Z), then follow-up keys."
                 : "● Recording Simultaneous — hold Modifier (Ctrl/Alt/Shift/Win) + chord keys together, then release.";
 
-            App.Engine.BeginChordRecording((vk, isDown, mods) =>
+            var recordedMods = ChordModifiers.None;
+            App.Engine.BeginChordRecording((vk, isDown, _) =>
             {
-                if (ChordKeyHelper.IsModifierKey(vk))
+                var modFlag = ChordKeyHelper.ToModifierFlag(vk);
+                if (modFlag != ChordModifiers.None)
                 {
+                    if (isDown) recordedMods |= modFlag;
+                    else recordedMods &= ~modFlag;
                     return true;
                 }
+
+                var mods = recordedMods;
 
                 if (workingChord.Mode == KeyboardChordMode.Simultaneous)
                 {
