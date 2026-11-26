@@ -22,7 +22,7 @@
 
 ## Download
 
-Grab the latest Windows `x64` release (`v1.3.0`) from [**GitHub Releases**](https://github.com/piyushagade/Flick/releases/latest):
+Grab the latest Windows `x64` release (`v1.4.0`) from [**GitHub Releases**](https://github.com/piyushagade/Flick/releases/latest):
 
 | Package | File | Description |
 | :--- | :--- | :--- |

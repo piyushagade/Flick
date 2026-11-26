@@ -1,3 +1,4 @@
+using Flick.App.Services;
 using Flick.Core.Knock;
 using Flick.Core.Models;
 using Flick.Core.Storage;
@@ -49,6 +50,14 @@ public sealed partial class SettingsPage : Page
         KnockToggle.IsOn = s.EnableKnockDetection;
         KnockSensitivitySlider.Value = s.KnockSensitivity * 100.0;
         KnockSensitivityLabel.Text = $"{s.KnockSensitivity:P0}";
+
+        KnockMicCombo.Items.Clear();
+        KnockMicCombo.Items.Add(new ComboBoxItem { Content = "System Default Microphone", Tag = "" });
+        foreach (string mic in KnockAudioService.GetAvailableMicrophones())
+        {
+            KnockMicCombo.Items.Add(new ComboBoxItem { Content = mic, Tag = mic });
+        }
+        SelectComboByTag(KnockMicCombo, s.KnockMicrophoneName ?? "");
 
         ShowTrailToggle.IsOn = s.ShowTrailOverlay;
         ShowHudPillToggle.IsOn = s.ShowActionHudPill;
@@ -191,6 +200,14 @@ public sealed partial class SettingsPage : Page
         {
             combo.SelectedIndex = 0;
         }
+    }
+
+    private void KnockMicCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_loading || !IsLoaded) return;
+        string? selected = (KnockMicCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString();
+        App.Engine.Profile.Settings.KnockMicrophoneName = string.IsNullOrWhiteSpace(selected) ? null : selected;
+        App.Engine.SaveProfile();
     }
 
     private void SettingChanged(object sender, RoutedEventArgs e)

@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using Flick.App.Services.Sneak;
+using Flick.Core.Events;
 using Flick.Core.Keyboard;
 using Flick.Core.Knock;
 using Flick.Core.Models;
@@ -36,6 +37,7 @@ public sealed class GestureEngineService : IDisposable
     private readonly PrecisionTouchpadHook _touchpadHook = new();
     private readonly KeyboardChordHook _keyboardHook = new();
     private readonly KnockAudioService _knockAudio = new();
+    private readonly SystemEventService _systemEvents = new();
     private readonly GestureTrailOverlay _overlay = new();
     private readonly SneakOrbOverlay _sneakOverlay = new();
     private readonly HotCornerService _hotCorners;
@@ -105,6 +107,8 @@ public sealed class GestureEngineService : IDisposable
         _knockAudio.GetRules = () => Profile.Rules;
         _knockAudio.GetSurfaces = () => Profile.Settings.KnockSurfaces;
         _knockAudio.KnockPatternMatched += OnKnockPatternMatched;
+
+        _systemEvents.EventTriggered += OnSystemEventTriggered;
     }
 
     public void Start(DispatcherQueue uiDispatcher)
@@ -116,6 +120,7 @@ public sealed class GestureEngineService : IDisposable
         _hook.Start();
         _touchpadHook.Start();
         _keyboardHook.Start();
+        _systemEvents.Start();
     }
 
     public void BeginRecording(
@@ -148,7 +153,7 @@ public sealed class GestureEngineService : IDisposable
     {
         _isRecording = true;
         _knockAudio.RecordKnockCallback = onKnock;
-        _knockAudio.Configure(true, Profile.Settings.KnockSensitivity, Profile.Settings.KnockPatternTimeoutMs);
+        _knockAudio.Configure(true, Profile.Settings.KnockSensitivity, Profile.Settings.KnockPatternTimeoutMs, Profile.Settings.KnockMicrophoneName);
     }
 
     public void EndKnockRecording()
@@ -177,10 +182,12 @@ public sealed class GestureEngineService : IDisposable
         _keyboardHook.IsEnabled = Profile.Settings.IsEnabled && !_isRecording && Profile.Settings.EnableKeyboardChords;
         _keyboardHook.SimultaneousWindowMs = Profile.Settings.ChordSimultaneousWindowMs;
         _keyboardHook.SequenceTimeoutMs = Profile.Settings.ChordSequenceTimeoutMs;
+        _systemEvents.IsEnabled = Profile.Settings.IsEnabled && !_isRecording && Profile.Settings.EnableSystemEvents;
         _knockAudio.Configure(
             _knockAudio.RecordKnockCallback is not null || (Profile.Settings.IsEnabled && !_isRecording && Profile.Settings.EnableKnockDetection),
             Profile.Settings.KnockSensitivity,
-            Profile.Settings.KnockPatternTimeoutMs);
+            Profile.Settings.KnockPatternTimeoutMs,
+            Profile.Settings.KnockMicrophoneName);
         _overlay.Configure(
             Profile.Settings.TrailColorHex,
             Profile.Settings.TrailThickness,
@@ -266,6 +273,40 @@ public sealed class GestureEngineService : IDisposable
         }
 
         return ranked.Count > 0 ? ranked[0].Gesture!.Name : null;
+    }
+
+    private void OnSystemEventTriggered(SystemEventKind kind, ForegroundAppInfo appInfo)
+    {
+        if (!Profile.Settings.IsEnabled || _isRecording || !Profile.Settings.EnableSystemEvents)
+        {
+            return;
+        }
+
+        if (SystemEventHelper.IsAppScopedEvent(kind) &&
+            RuleMatcher.IsProcessIgnored(appInfo.ProcessName, Profile.Settings.IgnoredProcesses))
+        {
+            return;
+        }
+
+        var mods = ForegroundWindowService.GetActiveModifiers();
+        var matching = SystemEventHelper.FindMatchingEventRules(
+            kind,
+            appInfo.ProcessName,
+            appInfo.WindowTitle,
+            mods,
+            Profile.Rules);
+
+        foreach (var rule in matching)
+        {
+            bool executed = TryExecuteRule(rule, appInfo.WindowHandle);
+            RecordActivity(new GestureActivityItem(
+                DateTimeOffset.Now,
+                $"Event: {SystemEventHelper.FormatEvent(kind)}",
+                rule.Name,
+                string.IsNullOrEmpty(appInfo.ProcessName) ? "System" : appInfo.ProcessName,
+                1.0,
+                executed));
+        }
     }
 
     private void OnKnockPatternMatched(KnockSequenceMatch match, ForegroundAppInfo foreground)
@@ -744,6 +785,7 @@ public sealed class GestureEngineService : IDisposable
         _touchpadHook.Dispose();
         _keyboardHook.Dispose();
         _knockAudio.Dispose();
+        _systemEvents.Dispose();
         _overlay.Dispose();
         _sneakOverlay.Dispose();
     }

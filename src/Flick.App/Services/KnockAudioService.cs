@@ -47,6 +47,25 @@ public sealed class KnockAudioService : IDisposable
         public nint reserved;
     }
 
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    private struct WAVEINCAPSW
+    {
+        public ushort wMid;
+        public ushort wPid;
+        public uint vDriverVersion;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
+        public string szPname;
+        public uint dwFormats;
+        public ushort wChannels;
+        public ushort wReserved1;
+    }
+
+    [DllImport("winmm.dll")]
+    private static extern uint waveInGetNumDevs();
+
+    [DllImport("winmm.dll", CharSet = CharSet.Unicode)]
+    private static extern int waveInGetDevCapsW(uint uDeviceID, out WAVEINCAPSW pwic, uint cbwic);
+
     [DllImport("winmm.dll")]
     private static extern int waveInOpen(out nint phwi, uint uDeviceID, ref WAVEFORMATEX pwfx, WaveInProc dwCallback, nint dwInstance, uint fdwOpen);
 
@@ -84,6 +103,41 @@ public sealed class KnockAudioService : IDisposable
     private volatile bool _isRunning;
     private bool _disposed;
     private long _lastTouchpadContactMs;
+    private uint _targetDeviceId = WAVE_MAPPER;
+
+    public static IReadOnlyList<string> GetAvailableMicrophones()
+    {
+        uint count = waveInGetNumDevs();
+        var list = new List<string>((int)count);
+        uint capsSize = (uint)Marshal.SizeOf<WAVEINCAPSW>();
+        for (uint i = 0; i < count; i++)
+        {
+            if (waveInGetDevCapsW(i, out var caps, capsSize) == 0 && !string.IsNullOrWhiteSpace(caps.szPname))
+            {
+                list.Add(caps.szPname.Trim());
+            }
+        }
+        return list;
+    }
+
+    private static uint ResolveDeviceId(string? microphoneName)
+    {
+        if (string.IsNullOrWhiteSpace(microphoneName))
+        {
+            return WAVE_MAPPER;
+        }
+
+        var devices = GetAvailableMicrophones();
+        for (int i = 0; i < devices.Count; i++)
+        {
+            if (string.Equals(devices[i], microphoneName.Trim(), StringComparison.OrdinalIgnoreCase))
+            {
+                return (uint)i;
+            }
+        }
+
+        return WAVE_MAPPER;
+    }
 
     public bool IsEnabled { get; private set; }
     public double Sensitivity { get; set; } = 0.65;
@@ -111,11 +165,14 @@ public sealed class KnockAudioService : IDisposable
         Interlocked.Exchange(ref _lastTouchpadContactMs, Environment.TickCount64);
     }
 
-    public void Configure(bool enabled, double sensitivity, int patternTimeoutMs)
+    public void Configure(bool enabled, double sensitivity, int patternTimeoutMs, string? microphoneName = null)
     {
         IsEnabled = enabled;
         Sensitivity = Math.Clamp(sensitivity, 0.1, 1.0);
         PatternTimeoutMs = Math.Clamp(patternTimeoutMs, 200, 1500);
+        uint nextDeviceId = ResolveDeviceId(microphoneName);
+        bool deviceChanged = nextDeviceId != _targetDeviceId;
+        _targetDeviceId = nextDeviceId;
 
         lock (_gate)
         {
@@ -125,7 +182,12 @@ public sealed class KnockAudioService : IDisposable
             }
         }
 
-        if (enabled && !_isRunning)
+        if (enabled && _isRunning && deviceChanged)
+        {
+            StopCapture();
+            StartCapture();
+        }
+        else if (enabled && !_isRunning)
         {
             StartCapture();
         }
@@ -153,7 +215,7 @@ public sealed class KnockAudioService : IDisposable
             };
 
             _callback = OnWaveInCallback;
-            int res = waveInOpen(out _hWaveIn, WAVE_MAPPER, ref fmt, _callback, 0, CALLBACK_FUNCTION);
+            int res = waveInOpen(out _hWaveIn, _targetDeviceId, ref fmt, _callback, 0, CALLBACK_FUNCTION);
             if (res != 0 || _hWaveIn == 0)
             {
                 LastError = $"waveInOpen failed (code {res})";

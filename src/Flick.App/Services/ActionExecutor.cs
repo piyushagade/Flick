@@ -70,6 +70,8 @@ public sealed class ActionExecutor
     };
 
     public Action<bool>? ToggleSneakHandler { get; set; }
+    private nint _lastMaxToggleHwnd;
+    private long _lastMaxToggleTick;
 
     public void Execute(GestureRule rule, nint targetWindow)
     {
@@ -214,6 +216,11 @@ public sealed class ActionExecutor
         {
             targetWindow = NativeMethods.GetForegroundWindow();
         }
+        if (targetWindow != 0)
+        {
+            nint root = NativeMethods.GetAncestor(targetWindow, NativeMethods.GA_ROOT);
+            if (root != 0) targetWindow = root;
+        }
 
         switch (command.Trim().ToLowerInvariant())
         {
@@ -221,10 +228,29 @@ public sealed class ActionExecutor
                 if (targetWindow != 0) NativeMethods.ShowWindow(targetWindow, NativeMethods.SW_MINIMIZE);
                 break;
             case "maximize":
-                if (targetWindow != 0) NativeMethods.ShowWindow(targetWindow, NativeMethods.SW_MAXIMIZE);
+                if (targetWindow != 0)
+                {
+                    long now = Environment.TickCount64;
+                    if (targetWindow == _lastMaxToggleHwnd && now - _lastMaxToggleTick < 400)
+                    {
+                        break;
+                    }
+                    _lastMaxToggleHwnd = targetWindow;
+                    _lastMaxToggleTick = now;
+
+                    nint hwnd = targetWindow;
+                    _ = Task.Run(async () =>
+                    {
+                        await Task.Delay(60).ConfigureAwait(false);
+                        nint sc = NativeMethods.IsZoomed(hwnd)
+                            ? NativeMethods.SC_RESTORE
+                            : NativeMethods.SC_MAXIMIZE;
+                        NativeMethods.PostMessage(hwnd, NativeMethods.WM_SYSCOMMAND, sc, 0);
+                    });
+                }
                 break;
             case "restore":
-                if (targetWindow != 0) NativeMethods.ShowWindow(targetWindow, NativeMethods.SW_RESTORE);
+                if (targetWindow != 0) NativeMethods.PostMessage(targetWindow, NativeMethods.WM_SYSCOMMAND, NativeMethods.SC_RESTORE, 0);
                 break;
             case "close":
                 if (targetWindow != 0) NativeMethods.PostMessage(targetWindow, NativeMethods.WM_CLOSE, 0, 0);
@@ -362,6 +388,12 @@ public sealed class ActionExecutor
                 break;
             case "emptyrecyclebin":
                 _ = SHEmptyRecycleBin(0, null, 0x00000007); // NOCONFIRMATION | NOPROGRESSUI | NOSOUND
+                break;
+            case "togglemicrophone":
+                _ = DevicePrivacyService.ToggleMicrophoneMute();
+                break;
+            case "togglecamera":
+                _ = DevicePrivacyService.ToggleCameraAccess();
                 break;
         }
     }

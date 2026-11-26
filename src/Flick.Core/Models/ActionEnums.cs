@@ -7,7 +7,26 @@ public enum TriggerType
 {
     Gesture = 0,
     KeyboardChord = 1,
-    KnockPattern = 2
+    KnockPattern = 2,
+    SystemEvent = 3
+}
+
+/// <summary>
+/// Supported OS/application lifecycle events for <see cref="TriggerType.SystemEvent"/> rules.
+/// </summary>
+public enum SystemEventKind
+{
+    AppOpen = 0,
+    AppClose = 1,
+    AppMinimized = 2,
+    AppFocused = 3,
+    OnLogin = 4,
+    SessionLock = 5,
+    SessionUnlock = 6,
+    DisplayOff = 7,
+    DisplayOn = 8,
+    StartMenuOpen = 9,
+    SystemTrayClick = 10
 }
 
 /// <summary>

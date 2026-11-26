@@ -13,7 +13,7 @@ public sealed partial class CornersPage : Page
         ("Task View", "TaskView"),
         ("Show Desktop", "ShowDesktop"),
         ("Minimize Window", "Minimize"),
-        ("Maximize Window", "Maximize"),
+        ("Maximize / Restore Window", "Maximize"),
         ("Previous Desktop", "DesktopLeft"),
         ("Next Desktop", "DesktopRight"),
         ("Sneak (Peek Window Behind)", "Sneak")

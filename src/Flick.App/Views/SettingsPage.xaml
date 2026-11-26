@@ -173,6 +173,12 @@
                                 <TextBlock x:Name="KnockSensitivityLabel" Grid.Column="2" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
                             </Grid>
                             <Slider x:Name="KnockSensitivitySlider" Margin="32,0,0,0" Minimum="10" Maximum="100" StepFrequency="5" ValueChanged="SliderChanged" />
+                            <ComboBox
+                                x:Name="KnockMicCombo"
+                                Header="Microphone Device"
+                                Margin="32,6,0,0"
+                                HorizontalAlignment="Stretch"
+                                SelectionChanged="KnockMicCombo_SelectionChanged" />
                         </StackPanel>
 
                         <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" />

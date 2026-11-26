@@ -1,4 +1,6 @@
 using Flick.App.Helpers;
+using Flick.App.Services;
+using Flick.Core.Events;
 using Flick.Core.Keyboard;
 using Flick.Core.Knock;
 using Flick.Core.Models;
@@ -32,6 +34,22 @@ public sealed class RuleRowViewModel
     public required Visibility TapIconVisibility { get; init; }
     public required Visibility ChordIconVisibility { get; init; }
     public required Visibility KnockIconVisibility { get; init; }
+    public required Visibility EventIconVisibility { get; init; }
+    public required string GroupByFingersKey { get; init; }
+    public required string GroupByTriggerKey { get; init; }
+    public required string GroupByActionKey { get; init; }
+    public required int GroupSortOrder { get; init; }
+}
+
+public sealed class RuleGroup : List<RuleRowViewModel>
+{
+    public string Key { get; }
+    public string GroupCount { get; }
+    public RuleGroup(string key, IEnumerable<RuleRowViewModel> items) : base(items)
+    {
+        Key = key;
+        GroupCount = Count.ToString();
+    }
 }
 
 public sealed partial class RulesPage : Page
@@ -75,9 +93,24 @@ public sealed partial class RulesPage : Page
         }
     }
 
-    private void DeleteScope_Click(object sender, RoutedEventArgs e)
+    private async void DeleteScope_Click(object sender, RoutedEventArgs e)
     {
         if (_activeAppScope is null) return;
+
+        var dialog = new ContentDialog
+        {
+            XamlRoot = XamlRoot,
+            Title = "Delete App Scope?",
+            Content = $"Delete \"{_activeAppScope.Name}\" and all rules inside it? This cannot be undone.",
+            PrimaryButtonText = "Delete Scope",
+            CloseButtonText = "Cancel",
+            DefaultButton = ContentDialogButton.Close
+        };
+
+        if (await dialog.ShowAsync() != ContentDialogResult.Primary)
+        {
+            return;
+        }
 
         string targetFilter = _activeAppScope.ProcessFilter.Trim();
         App.Engine.Profile.Scopes.RemoveAll(s => s.Id == _activeAppScope.Id);
@@ -114,12 +147,15 @@ public sealed partial class RulesPage : Page
 
             bool isChord = rule.TriggerType == TriggerType.KeyboardChord;
             bool isKnock = rule.TriggerType == TriggerType.KnockPattern;
+            bool isEvent = rule.TriggerType == TriggerType.SystemEvent;
             gestureMap.TryGetValue(rule.GestureId, out var gesture);
             string gestureName = isChord
                 ? ChordKeyHelper.FormatChord(rule.KeyboardChord)
                 : isKnock
                     ? KnockPatternMatcher.FormatPattern(rule.KnockPattern)
-                    : (gesture?.Name ?? "Unknown Gesture");
+                    : isEvent
+                        ? SystemEventHelper.FormatEvent(rule.SystemEvent)
+                        : (gesture?.Name ?? "Unknown Gesture");
 
             if (!string.IsNullOrEmpty(query) &&
                 !rule.Name.Contains(query, StringComparison.OrdinalIgnoreCase) &&
@@ -134,27 +170,65 @@ public sealed partial class RulesPage : Page
                 ? (rule.KeyboardChord?.Mode == KeyboardChordMode.Sequential ? "Sequential Chord" : "Simultaneous Chord")
                 : isKnock
                     ? "Acoustic Knock"
-                    : rule.InputSource switch
-                    {
-                        GestureInputSource.Touchpad when rule.FingerCount > 0 => $"{rule.FingerCount}-Finger Touchpad",
-                        GestureInputSource.Touchpad => "Touchpad",
-                        GestureInputSource.Mouse => "Mouse",
-                        _ => "Any Input"
-                    };
+                    : isEvent
+                        ? "System Event"
+                        : rule.InputSource switch
+                        {
+                            GestureInputSource.Touchpad when rule.FingerCount > 0 => $"{rule.FingerCount}-Finger Touchpad",
+                            GestureInputSource.Touchpad => "Touchpad",
+                            GestureInputSource.Mouse => "Mouse",
+                            _ => "Any Input"
+                        };
             string scopeLabel = rule.IsGlobal ? "Global" : rule.ApplicationFilter;
 
-            bool isTap = !isChord && !isKnock && string.Equals(rule.GestureId, "builtin-tap", StringComparison.Ordinal);
-            string repBadge = !isChord && !isKnock && rule.RequiredRepetitions > 1 ? $" • {rule.RequiredRepetitions}×" : "";
-            string seqBadge = !isChord && !isKnock && rule.FollowUpGestures is { Count: > 0 } ? $" • {1 + rule.FollowUpGestures.Count}-Step" : "";
+            bool isTap = !isChord && !isKnock && !isEvent && string.Equals(rule.GestureId, "builtin-tap", StringComparison.Ordinal);
+            string repBadge = !isChord && !isKnock && !isEvent && rule.RequiredRepetitions > 1 ? $" • {rule.RequiredRepetitions}×" : "";
+            string seqBadge = !isChord && !isKnock && !isEvent && rule.FollowUpGestures is { Count: > 0 } ? $" • {1 + rule.FollowUpGestures.Count}-Step" : "";
 
             var settings = profile.Settings;
             bool triggerEngineEnabled = settings.IsEnabled && rule.TriggerType switch
             {
                 TriggerType.KeyboardChord => settings.EnableKeyboardChords,
                 TriggerType.KnockPattern => settings.EnableKnockDetection,
+                TriggerType.SystemEvent => settings.EnableSystemEvents,
                 _ => rule.InputSource != GestureInputSource.Touchpad || settings.EnableTouchpadGestures
             };
             string engineOffBadge = !settings.IsEnabled ? " • Paused" : (!triggerEngineEnabled ? " • Engine Off" : "");
+
+            string fingersGroup = isChord
+                ? "Keyboard Chords"
+                : isKnock
+                    ? "Knock Patterns"
+                    : isEvent
+                        ? "System Events"
+                        : rule.InputSource switch
+                        {
+                            GestureInputSource.Touchpad when rule.FingerCount > 0 => $"{rule.FingerCount}-Finger Touchpad",
+                            GestureInputSource.Touchpad => "Touchpad (Any Fingers)",
+                            GestureInputSource.Mouse => "Mouse Gestures",
+                            _ => "Any Input"
+                        };
+
+            int fingerSortOrder = isChord ? 100 : isKnock ? 101 : isEvent ? 102 : rule.InputSource switch
+            {
+                GestureInputSource.Touchpad when rule.FingerCount > 0 => rule.FingerCount,
+                GestureInputSource.Touchpad => 10,
+                GestureInputSource.Mouse => 20,
+                _ => 30
+            };
+
+            string triggerGroup = isChord
+                ? "Keyboard Chords"
+                : isKnock
+                    ? "Knock Patterns"
+                    : isEvent
+                        ? "System Events"
+                        : rule.InputSource switch
+                        {
+                            GestureInputSource.Touchpad => "Touchpad Gestures",
+                            GestureInputSource.Mouse => "Mouse Gestures",
+                            _ => "Any Input Gestures"
+                        };
 
             items.Add(new RuleRowViewModel
             {
@@ -165,17 +239,46 @@ public sealed partial class RulesPage : Page
                 IsEnabled = rule.IsEnabled,
                 IsEngineActive = triggerEngineEnabled,
                 RowOpacity = triggerEngineEnabled ? 1.0 : 0.45,
-                PreviewStrokes = !isChord && !isKnock && !isTap ? BuildPreviewStrokes(gesture, rule.FingerCount) : [],
+                PreviewStrokes = !isChord && !isKnock && !isEvent && !isTap ? BuildPreviewStrokes(gesture, rule.FingerCount) : [],
                 TapDots = isTap ? BuildPreviewTapDots(rule) : [],
-                StrokeVisibility = !isChord && !isKnock && !isTap ? Visibility.Visible : Visibility.Collapsed,
+                StrokeVisibility = !isChord && !isKnock && !isEvent && !isTap ? Visibility.Visible : Visibility.Collapsed,
                 TapIconVisibility = isTap ? Visibility.Visible : Visibility.Collapsed,
                 ChordIconVisibility = isChord ? Visibility.Visible : Visibility.Collapsed,
-                KnockIconVisibility = isKnock ? Visibility.Visible : Visibility.Collapsed
+                KnockIconVisibility = isKnock ? Visibility.Visible : Visibility.Collapsed,
+                EventIconVisibility = isEvent ? Visibility.Visible : Visibility.Collapsed,
+                GroupByFingersKey = fingersGroup,
+                GroupByTriggerKey = triggerGroup,
+                GroupByActionKey = rule.ActionType.ToString(),
+                GroupSortOrder = fingerSortOrder
             });
         }
 
+        string groupMode = (GroupByCombo.SelectedItem as ComboBoxItem)?.Tag as string ?? "trigger";
+
         _suppressToggles = true;
-        RulesListView.ItemsSource = items;
+        if (groupMode == "none")
+        {
+            RulesListView.ItemsSource = items;
+        }
+        else
+        {
+            Func<RuleRowViewModel, string> keySelector = groupMode switch
+            {
+                "fingers" => r => r.GroupByFingersKey,
+                "trigger" => r => r.GroupByTriggerKey,
+                _ => r => r.GroupByActionKey
+            };
+
+            var groups = items
+                .GroupBy(keySelector)
+                .OrderBy(g => groupMode == "fingers" ? g.Min(x => x.GroupSortOrder) : 0)
+                .ThenBy(g => g.Key, StringComparer.OrdinalIgnoreCase)
+                .Select(g => new RuleGroup(g.Key, g))
+                .ToList();
+
+            GroupedRulesCvs.Source = groups;
+            RulesListView.ItemsSource = GroupedRulesCvs.View;
+        }
         _suppressToggles = false;
 
         bool isEmpty = items.Count == 0;
@@ -190,9 +293,46 @@ public sealed partial class RulesPage : Page
                 ? $"No gestures or actions match \"{query}\". Try clearing the search box."
                 : "Click + New to record a mouse or multi-finger touchpad gesture and assign an action.";
         }
+
+        UpdateConflictBanner(profile);
+    }
+
+    private void UpdateConflictBanner(FlickProfile profile)
+    {
+        var conflicts = TouchpadConflictService.DetectConflicts(profile);
+        if (conflicts.Count > 0)
+        {
+            string names = string.Join(", ", conflicts.Select(c => c.FriendlyName));
+            ConflictBanner.Message = $"{names} overlap(s) with your rules — click to review on Dashboard.";
+            ConflictBanner.Visibility = Visibility.Visible;
+            ConflictBanner.IsOpen = true;
+        }
+        else
+        {
+            ConflictBanner.IsOpen = false;
+            ConflictBanner.Visibility = Visibility.Collapsed;
+        }
+    }
+
+    private void ConflictBanner_PointerPressed(object sender, PointerRoutedEventArgs e)
+    {
+        App.MainWindowInstance?.NavigateTo("home");
+    }
+
+    private void ReviewConflicts_Click(object sender, RoutedEventArgs e)
+    {
+        App.MainWindowInstance?.NavigateTo("home");
     }
 
     private void SearchBox_TextChanged(object sender, TextChangedEventArgs e) => RefreshList();
+
+    private void GroupByCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (IsLoaded)
+        {
+            RefreshList();
+        }
+    }
 
     private void RuleToggle_Toggled(object sender, RoutedEventArgs e)
     {
@@ -206,6 +346,7 @@ public sealed partial class RulesPage : Page
         {
             rule.IsEnabled = ts.IsOn;
             App.Engine.SaveProfile();
+            UpdateConflictBanner(App.Engine.Profile);
         }
     }
 
@@ -249,9 +390,30 @@ public sealed partial class RulesPage : Page
         }
     }
 
-    private void DeleteRule_Click(object sender, RoutedEventArgs e)
+    private async void DeleteRule_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is not Button btn || btn.Tag is not string id)
+        if ((sender as FrameworkElement)?.Tag is not string id)
+        {
+            return;
+        }
+
+        var rule = App.Engine.Profile.Rules.FirstOrDefault(r => r.Id == id);
+        if (rule is null)
+        {
+            return;
+        }
+
+        var dialog = new ContentDialog
+        {
+            XamlRoot = XamlRoot,
+            Title = "Delete Gesture Rule?",
+            Content = $"Delete \"{rule.Name}\"? This action cannot be undone.",
+            PrimaryButtonText = "Delete",
+            CloseButtonText = "Cancel",
+            DefaultButton = ContentDialogButton.Close
+        };
+
+        if (await dialog.ShowAsync() != ContentDialogResult.Primary)
         {
             return;
         }
@@ -266,7 +428,7 @@ public sealed partial class RulesPage : Page
 
     private void MoveRule(object sender, int delta)
     {
-        if (sender is not Button btn || btn.Tag is not string id) return;
+        if ((sender as FrameworkElement)?.Tag is not string id) return;
         var rules = App.Engine.Profile.Rules;
         int idx = rules.FindIndex(r => r.Id == id);
         if (idx < 0) return;
@@ -281,7 +443,7 @@ public sealed partial class RulesPage : Page
 
     private void DuplicateRule_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is not Button btn || btn.Tag is not string id) return;
+        if ((sender as FrameworkElement)?.Tag is not string id) return;
         var rules = App.Engine.Profile.Rules;
         int idx = rules.FindIndex(r => r.Id == id);
         if (idx < 0) return;
@@ -469,7 +631,7 @@ public sealed partial class RulesPage : Page
             "\uE737",
             "Window Management",
             [
-                new("Maximize Window", "Maximize"),
+                new("Maximize / Restore Window", "Maximize"),
                 new("Minimize Window", "Minimize"),
                 new("Restore Window", "Restore"),
                 new("Close Window", "Close"),
@@ -497,6 +659,8 @@ public sealed partial class RulesPage : Page
                 new("Clipboard History (Win+V)", "ClipboardHistory"),
                 new("Emoji Picker (Win+.)", "EmojiPicker"),
                 new("Quick Settings (Win+A)", "QuickSettings"),
+                new("Toggle Microphone (Mute / Unmute)", "ToggleMicrophone"),
+                new("Toggle Camera (Allow / Deny)", "ToggleCamera"),
                 new("Empty Recycle Bin", "EmptyRecycleBin"),
                 new("Sleep PC", "Sleep"),
                 new("Restart PC", "Restart"),
@@ -1160,6 +1324,16 @@ public sealed partial class RulesPage : Page
             Visibility = Visibility.Collapsed
         };
 
+        var micKnockWarningBar = new InfoBar
+        {
+            Severity = InfoBarSeverity.Warning,
+            IsClosable = false,
+            Title = "Knock Detection Notice",
+            Message = "Muting the microphone globally will also disable Acoustic Knock Detection while muted.",
+            IsOpen = false,
+            Visibility = Visibility.Collapsed
+        };
+
         void SelectCategory(ActionCategoryInfo cat, string? initialPayload = null)
         {
             selectedCategory = cat;
@@ -1203,6 +1377,10 @@ public sealed partial class RulesPage : Page
             bool isSneak = selectedCategory.PrimaryType == ActionType.WindowManagement &&
                            string.Equals(preset.Payload, "Sneak", StringComparison.OrdinalIgnoreCase);
             sneakShowAllToggle.Visibility = isSneak ? Visibility.Visible : Visibility.Collapsed;
+            bool isToggleMic = selectedCategory.PrimaryType == ActionType.SystemAction &&
+                               string.Equals(preset.Payload, "ToggleMicrophone", StringComparison.OrdinalIgnoreCase);
+            micKnockWarningBar.Visibility = isToggleMic ? Visibility.Visible : Visibility.Collapsed;
+            micKnockWarningBar.IsOpen = isToggleMic;
             if (!needsCustom)
             {
                 payloadBox.Text = preset.Payload;
@@ -1721,13 +1899,16 @@ public sealed partial class RulesPage : Page
         var gestureTriggerItem = new ComboBoxItem { Content = "Mouse / Touchpad Gesture", Tag = TriggerType.Gesture };
         var chordTriggerItem = new ComboBoxItem { Content = "Keyboard Chord", Tag = TriggerType.KeyboardChord };
         var knockTriggerItem = new ComboBoxItem { Content = "Knock Pattern (Acoustic)", Tag = TriggerType.KnockPattern };
+        var eventTriggerItem = new ComboBoxItem { Content = "System / App Event", Tag = TriggerType.SystemEvent };
         triggerTypeCombo.Items.Add(gestureTriggerItem);
         triggerTypeCombo.Items.Add(chordTriggerItem);
         triggerTypeCombo.Items.Add(knockTriggerItem);
+        triggerTypeCombo.Items.Add(eventTriggerItem);
         triggerTypeCombo.SelectedItem = selectedTriggerType switch
         {
             TriggerType.KeyboardChord => chordTriggerItem,
             TriggerType.KnockPattern => knockTriggerItem,
+            TriggerType.SystemEvent => eventTriggerItem,
             _ => gestureTriggerItem
         };
 
@@ -2328,11 +2509,43 @@ public sealed partial class RulesPage : Page
         knockTriggerPanel.Children.Add(recordKnockBtn);
         knockTriggerPanel.Children.Add(useRhythmCheck);
 
+        var eventKindCombo = new ComboBox
+        {
+            Header = "Event",
+            HorizontalAlignment = HorizontalAlignment.Stretch
+        };
+        foreach (SystemEventKind ek in Enum.GetValues<SystemEventKind>())
+        {
+            var item = new ComboBoxItem { Content = SystemEventHelper.FormatEvent(ek), Tag = ek };
+            eventKindCombo.Items.Add(item);
+            if (ek == (rule.SystemEvent ?? SystemEventKind.AppOpen))
+            {
+                eventKindCombo.SelectedItem = item;
+            }
+        }
+        if (eventKindCombo.SelectedIndex < 0 && eventKindCombo.Items.Count > 0)
+        {
+            eventKindCombo.SelectedIndex = 0;
+        }
+
+        var eventInfoText = new TextBlock
+        {
+            Text = "App events (Opened, Closed, Minimized, Focused) can be scoped to a specific app or Global (*). Session, Display, Login, and Shell events trigger system-wide.",
+            Style = (Style)Application.Current.Resources["CaptionTextBlockStyle"],
+            Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"],
+            TextWrapping = TextWrapping.Wrap
+        };
+
+        var eventTriggerPanel = new StackPanel { Spacing = 8 };
+        eventTriggerPanel.Children.Add(eventKindCombo);
+        eventTriggerPanel.Children.Add(eventInfoText);
+
         void UpdateTriggerTypeVisibility()
         {
             gestureTriggerPanel.Visibility = selectedTriggerType == TriggerType.Gesture ? Visibility.Visible : Visibility.Collapsed;
             chordTriggerPanel.Visibility = selectedTriggerType == TriggerType.KeyboardChord ? Visibility.Visible : Visibility.Collapsed;
             knockTriggerPanel.Visibility = selectedTriggerType == TriggerType.KnockPattern ? Visibility.Visible : Visibility.Collapsed;
+            eventTriggerPanel.Visibility = selectedTriggerType == TriggerType.SystemEvent ? Visibility.Visible : Visibility.Collapsed;
             if (selectedTriggerType != TriggerType.KeyboardChord)
             {
                 StopChordRecording();
@@ -2358,6 +2571,7 @@ public sealed partial class RulesPage : Page
         step1Panel.Children.Add(gestureTriggerPanel);
         step1Panel.Children.Add(chordTriggerPanel);
         step1Panel.Children.Add(knockTriggerPanel);
+        step1Panel.Children.Add(eventTriggerPanel);
 
         // Step 2: Action
         var step2Panel = new StackPanel { Spacing = 12, HorizontalAlignment = HorizontalAlignment.Stretch, Visibility = Visibility.Collapsed };
@@ -2365,6 +2579,7 @@ public sealed partial class RulesPage : Page
         step2Panel.Children.Add(categoryCombo);
         step2Panel.Children.Add(subcategoryCombo);
         step2Panel.Children.Add(sneakShowAllToggle);
+        step2Panel.Children.Add(micKnockWarningBar);
         step2Panel.Children.Add(payloadRow);
 
         // Step 3: Conditions & Macro (Optional)
@@ -2668,6 +2883,7 @@ public sealed partial class RulesPage : Page
                 workingChord.SuppressKeys = suppressKeysCheck.IsChecked == true;
                 rule.KeyboardChord = workingChord;
                 rule.KnockPattern = null;
+                rule.SystemEvent = null;
                 rule.FollowUpGestures = null;
             }
             else if (selectedTriggerType == TriggerType.KnockPattern)
@@ -2678,13 +2894,24 @@ public sealed partial class RulesPage : Page
                 }
                 rule.KnockPattern = workingKnock;
                 rule.KeyboardChord = null;
+                rule.SystemEvent = null;
                 rule.FollowUpGestures = null;
                 App.Engine.Profile.Settings.EnableKnockDetection = true;
+            }
+            else if (selectedTriggerType == TriggerType.SystemEvent)
+            {
+                rule.SystemEvent = (eventKindCombo.SelectedItem as ComboBoxItem)?.Tag is SystemEventKind ek
+                    ? ek
+                    : SystemEventKind.AppOpen;
+                rule.KeyboardChord = null;
+                rule.KnockPattern = null;
+                rule.FollowUpGestures = null;
             }
             else
             {
                 rule.KeyboardChord = null;
                 rule.KnockPattern = null;
+                rule.SystemEvent = null;
                 if (!string.IsNullOrEmpty(recordedBuiltInId))
                 {
                     rule.GestureId = recordedBuiltInId;

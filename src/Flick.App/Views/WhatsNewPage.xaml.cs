@@ -18,9 +18,18 @@ public sealed partial class WhatsNewPage : Page
         ReleasesList.ItemsSource = new ReleaseNoteItem[]
         {
             new(
+                "v1.4.0",
+                "System Event Triggers, Device Privacy & Touchpad Conflict Guard",
+                Visibility.Visible,
+                [
+                    "Added System Event triggers (App Open/Close/Minimize/Focus, Session Lock/Unlock, Display On/Off, Start Menu, System Tray, and On Login) with optional process/title matching.",
+                    "Added Device Privacy controls for global microphone mute/unmute and camera allow/deny toggling, plus quick-status toggles on the Dashboard.",
+                    "Added Precision Touchpad Conflict detection in Settings and Home to identify and resolve Windows touchpad gestures that collide with active Flick rules."
+                ]),
+            new(
                 "v1.3.0",
                 "Sneak Window Portal & Modifier-Only Sequences",
-                Visibility.Visible,
+                Visibility.Collapsed,
                 [
                     "Added Sneak: a feathered, cursor-following circular portal to peek through the active window at windows underneath without Alt-Tabbing.",
                     "Supports both Single Window Lock (cycle with Middle-Click, Tab, or Left/Right Arrows) and All Behind Windows composite layout, plus live scroll-wheel resizing.",

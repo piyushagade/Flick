@@ -31,6 +31,7 @@ public sealed class GestureRule
     public string GestureId { get; set; } = string.Empty;
     public KeyboardChordDefinition? KeyboardChord { get; set; }
     public KnockPatternDefinition? KnockPattern { get; set; }
+    public SystemEventKind? SystemEvent { get; set; }
 
     /// <summary>
     /// Empty or "*" means Global. Otherwise comma-separated process names (e.g. "msedge, chrome").

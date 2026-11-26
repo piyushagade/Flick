@@ -51,6 +51,9 @@ internal static unsafe partial class NativeMethods
     public const int SW_MAXIMIZE = 3;
     public const int SW_RESTORE = 9;
     public const uint WM_CLOSE = 0x0010;
+    public const uint WM_SYSCOMMAND = 0x0112;
+    public const nint SC_MAXIMIZE = 0xF030;
+    public const nint SC_RESTORE = 0xF120;
 
     public const int SM_XVIRTUALSCREEN = 76;
     public const int SM_YVIRTUALSCREEN = 77;
@@ -313,6 +316,10 @@ internal static unsafe partial class NativeMethods
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     public static extern bool ShowWindow(nint hWnd, int nCmdShow);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool IsZoomed(nint hWnd);
 
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]

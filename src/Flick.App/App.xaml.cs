@@ -8,10 +8,13 @@ public partial class App : Application
 {
     private MainWindow? _window;
     private bool _isExiting;
+    private Mutex? _singleInstanceMutex;
+    private EventWaitHandle? _activateEvent;
 
     public static GestureEngineService Engine { get; } = new();
     public static TrayIconService Tray { get; } = new();
     public static nint MainWindowHandle { get; private set; }
+    public static MainWindow? MainWindowInstance { get; private set; }
 
     public App()
     {
@@ -20,7 +23,26 @@ public partial class App : Application
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
+        _singleInstanceMutex = new Mutex(true, @"Local\Flick.SingleInstance.Mutex", out bool createdNew);
+        if (!createdNew)
+        {
+            try
+            {
+                using var existingEv = EventWaitHandle.OpenExisting(@"Local\Flick.SingleInstance.Activate");
+                existingEv.Set();
+            }
+            catch { }
+
+            _singleInstanceMutex.Dispose();
+            _singleInstanceMutex = null;
+            Exit();
+            return;
+        }
+
+        _activateEvent = new EventWaitHandle(false, EventResetMode.AutoReset, @"Local\Flick.SingleInstance.Activate");
+
         _window = new MainWindow();
+        MainWindowInstance = _window;
 
         nint hwnd = WindowNative.GetWindowHandle(_window);
         MainWindowHandle = hwnd;
@@ -36,16 +58,33 @@ public partial class App : Application
         ApplyTheme(Engine.Profile.Settings.ThemePreference);
         Engine.Start(_window.DispatcherQueue);
 
-        Tray.IsEngineEnabled = () => Engine.Profile.Settings.IsEnabled;
-        Tray.OpenRequested += () =>
+        void ShowMainWindow()
         {
-            _window.DispatcherQueue.TryEnqueue(() =>
+            NativeMethods.ShowWindow(hwnd, NativeMethods.SW_RESTORE);
+            NativeMethods.SetForegroundWindow(hwnd);
+            _window.Activate();
+        }
+
+        _ = Task.Run(() =>
+        {
+            while (!_isExiting && _activateEvent is { } ev)
             {
-                NativeMethods.ShowWindow(hwnd, NativeMethods.SW_RESTORE);
-                NativeMethods.SetForegroundWindow(hwnd);
-                _window.Activate();
-            });
-        };
+                try
+                {
+                    if (ev.WaitOne() && !_isExiting)
+                    {
+                        _window.DispatcherQueue.TryEnqueue(ShowMainWindow);
+                    }
+                }
+                catch
+                {
+                    break;
+                }
+            }
+        });
+
+        Tray.IsEngineEnabled = () => Engine.Profile.Settings.IsEnabled;
+        Tray.OpenRequested += () => _window.DispatcherQueue.TryEnqueue(ShowMainWindow);
         Tray.ToggleEnabledRequested += () =>
         {
             _window.DispatcherQueue.TryEnqueue(() =>
@@ -59,8 +98,14 @@ public partial class App : Application
             _window.DispatcherQueue.TryEnqueue(() =>
             {
                 _isExiting = true;
+                try { _activateEvent?.Set(); } catch { }
+                _activateEvent?.Dispose();
+                _activateEvent = null;
                 Tray.Dispose();
                 Engine.Dispose();
+                try { _singleInstanceMutex?.ReleaseMutex(); } catch { }
+                _singleInstanceMutex?.Dispose();
+                _singleInstanceMutex = null;
                 _window.Close();
                 Exit();
             });
