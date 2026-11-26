@@ -34,6 +34,7 @@ public sealed partial class SettingsPage : Page
         StartupToggle.IsOn = s.StartWithWindows;
         MinimizeTrayToggle.IsOn = s.MinimizeToTray;
         FullscreenPauseToggle.IsOn = s.AutoPauseOnFullscreen;
+        TextExpansionToggle.IsOn = s.EnableTextExpansion;
 
         SelectComboByTag(TriggerButtonCombo, s.TriggerButton.ToString());
         SelectComboByTag(WindowTargetCombo, s.WindowTarget.ToString());
@@ -217,6 +218,7 @@ public sealed partial class SettingsPage : Page
         s.StartWithWindows = StartupToggle.IsOn;
         s.MinimizeToTray = MinimizeTrayToggle.IsOn;
         s.AutoPauseOnFullscreen = FullscreenPauseToggle.IsOn;
+        s.EnableTextExpansion = TextExpansionToggle.IsOn;
         s.EnableTouchpadGestures = TouchpadToggle.IsOn;
         s.EnableKnockDetection = KnockToggle.IsOn;
         s.ShowTrailOverlay = ShowTrailToggle.IsOn;
@@ -258,6 +260,7 @@ public sealed partial class SettingsPage : Page
         App.Engine.Profile.Scopes = loaded.Scopes;
         App.Engine.Profile.Gestures = loaded.Gestures;
         App.Engine.Profile.Rules = loaded.Rules;
+        App.Engine.Profile.TextExpansions = loaded.TextExpansions;
         App.Engine.Profile.Settings = loaded.Settings;
         App.Engine.SaveProfile();
         LoadFromSettings();

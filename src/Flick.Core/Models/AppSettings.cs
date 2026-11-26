@@ -7,6 +7,7 @@ public sealed class AppSettings
 {
     public bool IsEnabled { get; set; } = true;
     public bool EnableKeyboardChords { get; set; } = true;
+    public bool EnableTextExpansion { get; set; } = true;
     public bool EnableSystemEvents { get; set; } = true;
     public int ChordSimultaneousWindowMs { get; set; } = 50;
     public int ChordSequenceTimeoutMs { get; set; } = 1000;
@@ -48,5 +49,6 @@ public sealed class FlickProfile
     public List<AppScope> Scopes { get; set; } = [];
     public List<GestureDefinition> Gestures { get; set; } = [];
     public List<GestureRule> Rules { get; set; } = [];
+    public List<TextExpansionRule> TextExpansions { get; set; } = [];
     public AppSettings Settings { get; set; } = new();
 }

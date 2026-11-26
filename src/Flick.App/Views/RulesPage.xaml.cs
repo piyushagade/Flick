@@ -56,6 +56,7 @@ public sealed partial class RulesPage : Page
 {
     private bool _suppressToggles;
     private AppScope? _activeAppScope;
+    private bool IsTextExpansionTab => ModeSelectorBar?.SelectedItem == TextExpansionTabItem;
 
     public RulesPage()
     {
@@ -116,6 +117,8 @@ public sealed partial class RulesPage : Page
         App.Engine.Profile.Scopes.RemoveAll(s => s.Id == _activeAppScope.Id);
         App.Engine.Profile.Rules.RemoveAll(r =>
             !r.IsGlobal && string.Equals(r.ApplicationFilter.Trim(), targetFilter, StringComparison.OrdinalIgnoreCase));
+        App.Engine.Profile.TextExpansions.RemoveAll(t =>
+            !t.IsGlobal && string.Equals(t.ApplicationFilter.Trim(), targetFilter, StringComparison.OrdinalIgnoreCase));
         App.Engine.SaveProfile();
 
         _activeAppScope = null;
@@ -125,6 +128,14 @@ public sealed partial class RulesPage : Page
 
     private void RefreshList()
     {
+        if (IsTextExpansionTab)
+        {
+            RefreshSnippetsList();
+            return;
+        }
+
+        RulesListView.Visibility = Visibility.Visible;
+        SnippetsListView.Visibility = Visibility.Collapsed;
         var profile = App.Engine.Profile;
         var gestureMap = profile.Gestures.ToDictionary(g => g.Id, g => g);
 
@@ -352,6 +363,12 @@ public sealed partial class RulesPage : Page
 
     private async void AddRule_Click(object sender, RoutedEventArgs e)
     {
+        if (IsTextExpansionTab)
+        {
+            await AddSnippetAsync();
+            return;
+        }
+
         var newRule = new GestureRule
         {
             Name = string.Empty,

@@ -41,7 +41,7 @@
                     <StackPanel Orientation="Horizontal" Spacing="8">
                         <TextBlock Text="Flick for Windows 11" Style="{StaticResource SubtitleTextBlockStyle}" />
                         <Border CornerRadius="6" Padding="8,2" Background="{ThemeResource SubtleFillColorSecondaryBrush}" VerticalAlignment="Center">
-                            <TextBlock Text="v1.4.0" Style="{StaticResource CaptionTextBlockStyle}" FontWeight="SemiBold" />
+                            <TextBlock Text="v1.5.0" Style="{StaticResource CaptionTextBlockStyle}" FontWeight="SemiBold" />
                         </Border>
                     </StackPanel>
                     <TextBlock

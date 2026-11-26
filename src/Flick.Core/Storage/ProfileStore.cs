@@ -43,6 +43,7 @@ public sealed class ProfileStore
                     loaded.Scopes ??= [];
                     loaded.Gestures ??= [];
                     loaded.Rules ??= [];
+                    loaded.TextExpansions ??= [];
                     loaded.Settings ??= new AppSettings();
                     loaded.Settings.HotCornerActions ??= [];
                     loaded.Settings.ScopeTrailColors ??= [];

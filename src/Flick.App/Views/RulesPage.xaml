@@ -6,10 +6,12 @@
 
     <Page.Resources>
         <CollectionViewSource x:Name="GroupedRulesCvs" IsSourceGrouped="True" />
+        <CollectionViewSource x:Name="GroupedSnippetsCvs" IsSourceGrouped="True" />
     </Page.Resources>
 
-    <Grid RowSpacing="16">
+    <Grid RowSpacing="14">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
@@ -32,10 +34,24 @@
             </StackPanel>
         </Grid>
 
+        <!-- Mode Selector: Triggers vs Text Expansion -->
+        <SelectorBar x:Name="ModeSelectorBar" Grid.Row="1" SelectionChanged="ModeSelectorBar_SelectionChanged" Margin="-12,0,0,0">
+            <SelectorBarItem x:Name="TriggersTabItem" Text="Triggers" Tag="triggers" IsSelected="True">
+                <SelectorBarItem.Icon>
+                    <FontIcon Glyph="&#xE815;" />
+                </SelectorBarItem.Icon>
+            </SelectorBarItem>
+            <SelectorBarItem x:Name="TextExpansionTabItem" Text="Text Expansion" Tag="snippets">
+                <SelectorBarItem.Icon>
+                    <FontIcon Glyph="&#xE8C1;" />
+                </SelectorBarItem.Icon>
+            </SelectorBarItem>
+        </SelectorBar>
+
         <!-- Compact Touchpad Conflict Notice -->
         <InfoBar
             x:Name="ConflictBanner"
-            Grid.Row="1"
+            Grid.Row="2"
             IsOpen="False"
             Visibility="Collapsed"
             Severity="Warning"
@@ -48,7 +64,7 @@
         </InfoBar>
 
         <!-- Search & Grouping Bar -->
-        <Grid Grid.Row="2" ColumnSpacing="12">
+        <Grid Grid.Row="3" ColumnSpacing="12">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
@@ -71,24 +87,35 @@
                     <ComboBoxItem Content="Action Type" Tag="action" />
                     <ComboBoxItem Content="None" Tag="none" />
                 </ComboBox>
+                <ComboBox
+                    x:Name="SnippetGroupByCombo"
+                    MinWidth="148"
+                    SelectedIndex="0"
+                    Visibility="Collapsed"
+                    SelectionChanged="GroupByCombo_SelectionChanged">
+                    <ComboBoxItem Content="Folder" Tag="folder" />
+                    <ComboBoxItem Content="Trigger Mode" Tag="trigger" />
+                    <ComboBoxItem Content="Case Mode" Tag="case" />
+                    <ComboBoxItem Content="None" Tag="none" />
+                </ComboBox>
             </StackPanel>
         </Grid>
 
         <!-- Empty State -->
         <StackPanel
             x:Name="EmptyStatePanel"
-            Grid.Row="3"
+            Grid.Row="4"
             Spacing="10"
             HorizontalAlignment="Center"
             VerticalAlignment="Center"
             Visibility="Collapsed">
-            <FontIcon Glyph="&#xE815;" FontSize="36" Foreground="{ThemeResource TextFillColorTertiaryBrush}" HorizontalAlignment="Center" />
+            <FontIcon x:Name="EmptyStateIcon" Glyph="&#xE815;" FontSize="36" Foreground="{ThemeResource TextFillColorTertiaryBrush}" HorizontalAlignment="Center" />
             <TextBlock x:Name="EmptyTitleText" Text="No gestures in this scope yet" Style="{StaticResource SubtitleTextBlockStyle}" HorizontalAlignment="Center" />
             <TextBlock x:Name="EmptySubtitleText" Text="Click + New above to record a mouse or multi-finger touchpad gesture and assign an action." Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextAlignment="Center" TextWrapping="Wrap" MaxWidth="380" />
         </StackPanel>
 
         <!-- Rules List -->
-        <ListView x:Name="RulesListView" Grid.Row="3" SelectionMode="None">
+        <ListView x:Name="RulesListView" Grid.Row="4" SelectionMode="None">
             <ListView.GroupStyle>
                 <GroupStyle HidesIfEmpty="True">
                     <GroupStyle.HeaderTemplate>
@@ -305,6 +332,153 @@
                                             </MenuFlyoutItem>
                                         </MenuFlyout>
                                     </Button.Flyout>
+                                </Button>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </ListView.ItemTemplate>
+        </ListView>
+
+        <!-- Text Expansion Snippets List -->
+        <ListView x:Name="SnippetsListView" Grid.Row="4" SelectionMode="None" Visibility="Collapsed">
+            <ListView.GroupStyle>
+                <GroupStyle HidesIfEmpty="True">
+                    <GroupStyle.HeaderTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal" Spacing="8" Margin="2,10,0,2">
+                                <TextBlock
+                                    Text="{Binding Key}"
+                                    Style="{StaticResource BodyStrongTextBlockStyle}"
+                                    Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
+                                    VerticalAlignment="Center" />
+                                <Border
+                                    CornerRadius="10"
+                                    Padding="7,1"
+                                    Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                                    VerticalAlignment="Center">
+                                    <TextBlock
+                                        Text="{Binding GroupCount}"
+                                        Style="{StaticResource CaptionTextBlockStyle}"
+                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                </Border>
+                            </StackPanel>
+                        </DataTemplate>
+                    </GroupStyle.HeaderTemplate>
+                </GroupStyle>
+            </ListView.GroupStyle>
+            <ListView.ItemTemplate>
+                <DataTemplate>
+                    <Border
+                        Margin="0,4"
+                        Padding="14,12"
+                        Opacity="{Binding RowOpacity}"
+                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8">
+                        <Grid ColumnSpacing="14" RowSpacing="8">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <!-- Abbreviation Badge -->
+                            <Border
+                                Grid.Row="0"
+                                Grid.Column="0"
+                                MinWidth="76"
+                                MaxWidth="140"
+                                Height="44"
+                                Padding="10,4"
+                                CornerRadius="6"
+                                Background="{ThemeResource SubtleFillColorSecondaryBrush}">
+                                <TextBlock
+                                    Text="{Binding Abbreviation}"
+                                    FontFamily="Consolas"
+                                    FontSize="13.5"
+                                    FontWeight="SemiBold"
+                                    Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    TextTrimming="CharacterEllipsis" />
+                            </Border>
+
+                            <StackPanel Grid.Row="0" Grid.Column="1" Spacing="4" VerticalAlignment="Center">
+                                <Grid ColumnSpacing="8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock
+                                        Grid.Column="0"
+                                        Text="{Binding Title}"
+                                        Style="{StaticResource BodyStrongTextBlockStyle}"
+                                        TextTrimming="CharacterEllipsis"
+                                        VerticalAlignment="Center" />
+                                    <Border
+                                        Grid.Column="1"
+                                        HorizontalAlignment="Left"
+                                        VerticalAlignment="Center"
+                                        Background="{ThemeResource SubtleFillColorTertiaryBrush}"
+                                        CornerRadius="4"
+                                        Padding="6,2">
+                                        <TextBlock
+                                            Text="{Binding ModeBadge}"
+                                            Style="{StaticResource CaptionTextBlockStyle}"
+                                            TextTrimming="CharacterEllipsis" />
+                                    </Border>
+                                </Grid>
+                                <TextBlock
+                                    Text="{Binding TemplatePreview}"
+                                    Style="{StaticResource CaptionTextBlockStyle}"
+                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                    TextWrapping="WrapWholeWords"
+                                    MaxLines="2"
+                                    TextTrimming="CharacterEllipsis" />
+                            </StackPanel>
+
+                            <ToggleSwitch
+                                Grid.Row="0"
+                                Grid.Column="2"
+                                VerticalAlignment="Center"
+                                IsOn="{Binding IsEnabled, Mode=OneWay}"
+                                IsEnabled="{Binding IsEngineActive}"
+                                OnContent=""
+                                OffContent=""
+                                MinWidth="0"
+                                Tag="{Binding Id}"
+                                Toggled="SnippetToggle_Toggled" />
+
+                            <StackPanel
+                                Grid.Row="1"
+                                Grid.Column="1"
+                                Grid.ColumnSpan="2"
+                                Orientation="Horizontal"
+                                Spacing="6"
+                                HorizontalAlignment="Right">
+                                <Button Tag="{Binding Id}" Padding="9,4" Click="EditSnippet_Click" ToolTipService.ToolTip="Edit snippet">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <FontIcon Glyph="&#xE70F;" FontSize="12" />
+                                        <TextBlock Text="Edit" Style="{StaticResource CaptionTextBlockStyle}" />
+                                    </StackPanel>
+                                </Button>
+                                <Button Tag="{Binding Id}" Padding="9,4" Click="DeleteSnippet_Click" ToolTipService.ToolTip="Delete snippet">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <FontIcon Glyph="&#xE74D;" FontSize="12" />
+                                        <TextBlock Text="Delete" Style="{StaticResource CaptionTextBlockStyle}" />
+                                    </StackPanel>
+                                </Button>
+                                <Button Tag="{Binding Id}" Padding="9,4" Click="DuplicateSnippet_Click" ToolTipService.ToolTip="Duplicate snippet">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <FontIcon Glyph="&#xE8C8;" FontSize="12" />
+                                        <TextBlock Text="Duplicate" Style="{StaticResource CaptionTextBlockStyle}" />
+                                    </StackPanel>
                                 </Button>
                             </StackPanel>
                         </Grid>

@@ -18,9 +18,18 @@ public sealed partial class WhatsNewPage : Page
         ReleasesList.ItemsSource = new ReleaseNoteItem[]
         {
             new(
+                "v1.5.0",
+                "Text Expansion & Dynamic Snippet Templates",
+                Visibility.Visible,
+                [
+                    "Added Text Expansion rules with OnDelimiter and Immediate trigger modes, plus Exact, CaseInsensitive, and SmartCase matching.",
+                    "Added rich snippet templates supporting interactive {input}/{choice} prompts, {cursor} positioning, keystrokes, and delays.",
+                    "Added Text Expansion management in Rules and global settings in Settings."
+                ]),
+            new(
                 "v1.4.0",
                 "System Event Triggers, Device Privacy & Touchpad Conflict Guard",
-                Visibility.Visible,
+                Visibility.Collapsed,
                 [
                     "Added System Event triggers (App Open/Close/Minimize/Focus, Session Lock/Unlock, Display On/Off, Start Menu, System Tray, and On Login) with optional process/title matching.",
                     "Added Device Privacy controls for global microphone mute/unmute and camera allow/deny toggling, plus quick-status toggles on the Dashboard.",

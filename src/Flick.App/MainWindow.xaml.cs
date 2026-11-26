@@ -46,14 +46,21 @@ public sealed partial class MainWindow : Window
 
         var items = new List<ScopeShortcutItem>
         {
-            new("global", "Global", "\uE774", profile.Rules.Count(r => r.IsGlobal).ToString(), BrushFor("global"))
+            new("global", "Global", "\uE774",
+                (profile.Rules.Count(r => r.IsGlobal) + profile.TextExpansions.Count(t => t.IsGlobal)).ToString(),
+                BrushFor("global"))
         };
 
         foreach (var scope in profile.Scopes)
         {
-            int count = profile.Rules.Count(r =>
-                !r.IsGlobal &&
-                string.Equals(r.ApplicationFilter.Trim(), scope.ProcessFilter.Trim(), StringComparison.OrdinalIgnoreCase));
+            string filter = scope.ProcessFilter.Trim();
+            int count =
+                profile.Rules.Count(r =>
+                    !r.IsGlobal &&
+                    string.Equals(r.ApplicationFilter.Trim(), filter, StringComparison.OrdinalIgnoreCase)) +
+                profile.TextExpansions.Count(t =>
+                    !t.IsGlobal &&
+                    string.Equals(t.ApplicationFilter.Trim(), filter, StringComparison.OrdinalIgnoreCase));
             string tag = $"appscope:{scope.Id}";
             items.Add(new ScopeShortcutItem(tag, scope.Name, "\uE737", count.ToString(), BrushFor(tag)));
         }

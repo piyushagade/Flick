@@ -81,6 +81,22 @@
                             </StackPanel>
                             <ToggleSwitch x:Name="FullscreenPauseToggle" Grid.Column="2" OnContent="" OffContent="" MinWidth="0" Toggled="SettingChanged" />
                         </Grid>
+
+                        <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
+
+                        <Grid Padding="16,12" ColumnSpacing="14">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <FontIcon Grid.Column="0" Glyph="&#xE8C1;" FontSize="18" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                <TextBlock Text="Enable Text Expansion" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                                <TextBlock Text="Expand typed abbreviations with variables, cursor placement, and macros" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            </StackPanel>
+                            <ToggleSwitch x:Name="TextExpansionToggle" Grid.Column="2" OnContent="" OffContent="" MinWidth="0" Toggled="SettingChanged" />
+                        </Grid>
                     </StackPanel>
                 </Border>
             </StackPanel>

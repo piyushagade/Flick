@@ -7,6 +7,7 @@ using Flick.Core.Models;
 using Flick.Core.Recognition;
 using Flick.Core.Rules;
 using Flick.Core.Storage;
+using Flick.Core.TextExpansion;
 using Flick.Core.Touchpad;
 using Microsoft.UI.Dispatching;
 
@@ -33,6 +34,7 @@ public sealed class GestureEngineService : IDisposable
     private readonly GestureSequenceTracker _sequenceTracker = new();
     private readonly ForegroundWindowService _foreground = new();
     private readonly ActionExecutor _executor = new();
+    private readonly TextExpansionExecutor _textExpansionExecutor = new();
     private readonly MouseGestureHook _hook = new();
     private readonly PrecisionTouchpadHook _touchpadHook = new();
     private readonly KeyboardChordHook _keyboardHook = new();
@@ -101,7 +103,9 @@ public sealed class GestureEngineService : IDisposable
 
         _keyboardHook.ShouldIgnoreCurrentWindow = ShouldIgnoreCurrent;
         _keyboardHook.GetRules = () => Profile.Rules;
+        _keyboardHook.GetTextExpansions = () => Profile.TextExpansions;
         _keyboardHook.ChordMatched += OnChordMatched;
+        _keyboardHook.TextExpansionMatched += OnTextExpansionMatched;
 
         _knockAudio.ShouldIgnoreCurrentWindow = ShouldIgnoreCurrent;
         _knockAudio.GetRules = () => Profile.Rules;
@@ -180,6 +184,7 @@ public sealed class GestureEngineService : IDisposable
         _touchpadHook.IsEnabled = _isRecording || (Profile.Settings.IsEnabled && Profile.Settings.EnableTouchpadGestures);
         _touchpadHook.MinNormalizedSwipeDistance = Profile.Settings.TouchpadMinSwipeDistance;
         _keyboardHook.IsEnabled = Profile.Settings.IsEnabled && !_isRecording && Profile.Settings.EnableKeyboardChords;
+        _keyboardHook.IsTextExpansionEnabled = Profile.Settings.IsEnabled && !_isRecording && Profile.Settings.EnableTextExpansion;
         _keyboardHook.SimultaneousWindowMs = Profile.Settings.ChordSimultaneousWindowMs;
         _keyboardHook.SequenceTimeoutMs = Profile.Settings.ChordSequenceTimeoutMs;
         _systemEvents.IsEnabled = Profile.Settings.IsEnabled && !_isRecording && Profile.Settings.EnableSystemEvents;
@@ -708,6 +713,23 @@ public sealed class GestureEngineService : IDisposable
             string.IsNullOrEmpty(foreground.ProcessName) ? "Desktop" : foreground.ProcessName,
             score,
             executed));
+    }
+
+    private void OnTextExpansionMatched(
+        TextExpansionRule rule,
+        TextExpansionMatchResult match,
+        ForegroundAppInfo foreground)
+    {
+        _textExpansionExecutor.Execute(rule, match, foreground, Profile.TextExpansions, _uiDispatcher);
+
+        string label = string.IsNullOrWhiteSpace(rule.Name) ? rule.Abbreviation : rule.Name;
+        RecordActivity(new GestureActivityItem(
+            DateTimeOffset.Now,
+            $"Snippet: {rule.Abbreviation}",
+            label,
+            string.IsNullOrEmpty(foreground.ProcessName) ? "Desktop" : foreground.ProcessName,
+            1.0,
+            true));
     }
 
     private void RecordActivity(GestureActivityItem item)

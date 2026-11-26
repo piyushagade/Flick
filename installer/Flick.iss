@@ -8,11 +8,11 @@
 #define MyAppExeName "Flick.App.exe"
 
 #ifndef MyAppVersion
-  #define MyAppVersion "1.4.0"
+  #define MyAppVersion "1.5.0"
 #endif
 
 #ifndef MyAppNumericVersion
-  #define MyAppNumericVersion "1.4.0.0"
+  #define MyAppNumericVersion "1.5.0.0"
 #endif
 
 #ifndef SourceDir
