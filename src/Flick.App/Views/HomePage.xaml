@@ -59,6 +59,8 @@
                         x:Name="EngineToggle"
                         Grid.Column="2"
                         VerticalAlignment="Center"
+                        HorizontalAlignment="Right"
+                        MinWidth="0"
                         OnContent="Active"
                         OffContent="Paused"
                         Toggled="EngineToggle_Toggled" />
