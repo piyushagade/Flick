@@ -26,6 +26,9 @@ public sealed class ActionExecutor
 
     [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
     private static extern uint SHEmptyRecycleBin(nint hwnd, string? pszRootPath, uint dwFlags);
+
+    [DllImport("sas.dll")]
+    private static extern void SendSAS(bool asUser);
     private static readonly Dictionary<string, ushort> KeyMap = new(StringComparer.OrdinalIgnoreCase)
     {
         ["CTRL"] = 0x11,
@@ -330,6 +333,15 @@ public sealed class ActionExecutor
                 break;
             case "taskmanager":
                 SendHotkey("Ctrl+Shift+Esc");
+                break;
+            case "startmenu":
+                SendHotkey("Win");
+                break;
+            case "rundialog":
+                SendHotkey("Win+R");
+                break;
+            case "ctrlaltdel":
+                try { SendSAS(asUser: true); } catch { }
                 break;
             case "quicksettings":
                 SendHotkey("Win+A");
