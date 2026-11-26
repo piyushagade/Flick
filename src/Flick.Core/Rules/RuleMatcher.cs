@@ -24,7 +24,9 @@ public sealed class RuleMatcher
 
         foreach (var rule in rules)
         {
-            if (!rule.IsEnabled || !string.Equals(rule.GestureId, gestureId, StringComparison.Ordinal))
+            if (!rule.IsEnabled ||
+                rule.TriggerType != TriggerType.Gesture ||
+                !string.Equals(rule.GestureId, gestureId, StringComparison.Ordinal))
             {
                 continue;
             }
@@ -47,27 +49,12 @@ public sealed class RuleMatcher
                 continue;
             }
 
-            bool titleMatched = false;
-            if (!string.IsNullOrWhiteSpace(rule.WindowTitleFilter))
-            {
-                if (!MatchesWindowTitle(windowTitle, rule.WindowTitleFilter))
-                {
-                    continue;
-                }
-                titleMatched = true;
-            }
-
-            bool appMatched = !rule.IsGlobal &&
-                              !string.IsNullOrEmpty(normalizedProc) &&
-                              MatchesFilter(normalizedProc, rule.ApplicationFilter);
-
-            if (!rule.IsGlobal && !appMatched)
+            if (!MatchesScopeAndPriority(rule, normalizedProc, windowTitle, out int scopePriority))
             {
                 continue;
             }
 
-            int priority = (appMatched ? 8 : 0)
-                         + (titleMatched ? 4 : 0)
+            int priority = scopePriority
                          + (rule.RequiredModifiers != ModifierKeyFilter.None ? 2 : 0)
                          + (rule.InputSource == inputSource ? 2 : 0)
                          + (inputSource == GestureInputSource.Touchpad && rule.FingerCount == fingerCount ? 1 : 0);
@@ -80,6 +67,42 @@ public sealed class RuleMatcher
         }
 
         return bestRule;
+    }
+
+    /// <summary>
+    /// Checks whether a rule's application and window-title filters match the foreground window
+    /// and computes a base specificity priority (app match = 8, title match = 4).
+    /// </summary>
+    public static bool MatchesScopeAndPriority(
+        GestureRule rule,
+        string? foregroundProcessName,
+        string? windowTitle,
+        out int scopePriority)
+    {
+        scopePriority = 0;
+        string normalizedProc = NormalizeProcessName(foregroundProcessName);
+
+        bool titleMatched = false;
+        if (!string.IsNullOrWhiteSpace(rule.WindowTitleFilter))
+        {
+            if (!MatchesWindowTitle(windowTitle, rule.WindowTitleFilter))
+            {
+                return false;
+            }
+            titleMatched = true;
+        }
+
+        bool appMatched = !rule.IsGlobal &&
+                          !string.IsNullOrEmpty(normalizedProc) &&
+                          MatchesFilter(normalizedProc, rule.ApplicationFilter);
+
+        if (!rule.IsGlobal && !appMatched)
+        {
+            return false;
+        }
+
+        scopePriority = (appMatched ? 8 : 0) + (titleMatched ? 4 : 0);
+        return true;
     }
 
     public static bool MatchesWindowTitle(string? windowTitle, string filter)

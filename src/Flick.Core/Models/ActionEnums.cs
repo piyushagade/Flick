@@ -1,6 +1,15 @@
 namespace Flick.Core.Models;
 
 /// <summary>
+/// Top-level trigger mechanism for a rule.
+/// </summary>
+public enum TriggerType
+{
+    Gesture = 0,
+    KeyboardChord = 1
+}
+
+/// <summary>
 /// Supported action types executed when a gesture rule matches.
 /// </summary>
 public enum ActionType

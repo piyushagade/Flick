@@ -4,7 +4,12 @@ namespace Flick.App.Services;
 
 internal static unsafe partial class NativeMethods
 {
+    public const int WH_KEYBOARD_LL = 13;
     public const int WH_MOUSE_LL = 14;
+    public const int WM_KEYDOWN = 0x0100;
+    public const int WM_KEYUP = 0x0101;
+    public const int WM_SYSKEYDOWN = 0x0104;
+    public const int WM_SYSKEYUP = 0x0105;
     public const int WM_MOUSEMOVE = 0x0200;
     public const int WM_LBUTTONDOWN = 0x0201;
     public const int WM_RBUTTONDOWN = 0x0204;
@@ -21,6 +26,8 @@ internal static unsafe partial class NativeMethods
     public const int WM_RBUTTONUP_TRAY = 0x0205;
 
     public const uint LLMHF_INJECTED = 0x00000001;
+    public const uint LLKHF_INJECTED = 0x00000010;
+    public const uint LLKHF_EXTENDED = 0x00000001;
 
     public const int INPUT_MOUSE = 0;
     public const int INPUT_KEYBOARD = 1;
@@ -77,6 +84,7 @@ internal static unsafe partial class NativeMethods
     public const uint TPM_RIGHTBUTTON = 0x0002;
 
     public delegate nint LowLevelMouseProc(int nCode, nint wParam, nint lParam);
+    public delegate nint LowLevelKeyboardProc(int nCode, nint wParam, nint lParam);
     public delegate nint WndProcDelegate(nint hWnd, uint msg, nint wParam, nint lParam);
 
     [StructLayout(LayoutKind.Sequential)]
@@ -109,6 +117,16 @@ internal static unsafe partial class NativeMethods
     {
         public int cx;
         public int cy;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct KBDLLHOOKSTRUCT
+    {
+        public uint vkCode;
+        public uint scanCode;
+        public uint flags;
+        public uint time;
+        public nuint dwExtraInfo;
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -223,6 +241,9 @@ internal static unsafe partial class NativeMethods
 
     [DllImport("user32.dll", SetLastError = true)]
     public static extern nint SetWindowsHookEx(int idHook, LowLevelMouseProc lpfn, nint hMod, uint dwThreadId);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern nint SetWindowsHookEx(int idHook, LowLevelKeyboardProc lpfn, nint hMod, uint dwThreadId);
 
     [DllImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]

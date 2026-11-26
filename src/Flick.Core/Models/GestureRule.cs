@@ -27,7 +27,9 @@ public sealed class GestureRule
 {
     public string Id { get; set; } = Guid.NewGuid().ToString("N");
     public string Name { get; set; } = string.Empty;
+    public TriggerType TriggerType { get; set; } = TriggerType.Gesture;
     public string GestureId { get; set; } = string.Empty;
+    public KeyboardChordDefinition? KeyboardChord { get; set; }
 
     /// <summary>
     /// Empty or "*" means Global. Otherwise comma-separated process names (e.g. "msedge, chrome").

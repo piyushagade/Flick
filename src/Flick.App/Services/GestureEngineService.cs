@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using Flick.Core.Keyboard;
 using Flick.Core.Models;
 using Flick.Core.Recognition;
 using Flick.Core.Rules;
@@ -31,6 +32,7 @@ public sealed class GestureEngineService : IDisposable
     private readonly ActionExecutor _executor = new();
     private readonly MouseGestureHook _hook = new();
     private readonly PrecisionTouchpadHook _touchpadHook = new();
+    private readonly KeyboardChordHook _keyboardHook = new();
     private readonly GestureTrailOverlay _overlay = new();
     private readonly HotCornerService _hotCorners;
     private DispatcherQueue? _uiDispatcher;
@@ -88,6 +90,10 @@ public sealed class GestureEngineService : IDisposable
         _touchpadHook.ShouldIgnoreCurrentWindow = _hook.ShouldIgnoreCurrentWindow;
         _touchpadHook.TouchpadStrokeUpdated += OnTouchpadStrokeUpdated;
         _touchpadHook.TouchpadGestureCompleted += OnTouchpadGestureCompleted;
+
+        _keyboardHook.ShouldIgnoreCurrentWindow = ShouldIgnoreCurrent;
+        _keyboardHook.GetRules = () => Profile.Rules;
+        _keyboardHook.ChordMatched += OnChordMatched;
     }
 
     public void Start(DispatcherQueue uiDispatcher)
@@ -97,6 +103,7 @@ public sealed class GestureEngineService : IDisposable
         _overlay.Start();
         _hook.Start();
         _touchpadHook.Start();
+        _keyboardHook.Start();
     }
 
     public void BeginRecording(
@@ -107,6 +114,21 @@ public sealed class GestureEngineService : IDisposable
         _onRecordTouchpadCompleted = onTouchpadCompleted;
         _isRecording = true;
         _overlay.Clear();
+        ApplySettingsToRuntime();
+    }
+
+    public void BeginChordRecording(Func<int, bool, ChordModifiers, bool> onKey)
+    {
+        _isRecording = true;
+        _keyboardHook.ResetState();
+        _keyboardHook.RecordKeyInterceptor = onKey;
+        ApplySettingsToRuntime();
+    }
+
+    public void EndChordRecording()
+    {
+        _keyboardHook.RecordKeyInterceptor = null;
+        _isRecording = false;
         ApplySettingsToRuntime();
     }
 
@@ -126,6 +148,9 @@ public sealed class GestureEngineService : IDisposable
         // Keep touchpad hook active during recording so multi-finger gestures can be captured without clicking.
         _touchpadHook.IsEnabled = _isRecording || (Profile.Settings.IsEnabled && Profile.Settings.EnableTouchpadGestures);
         _touchpadHook.MinNormalizedSwipeDistance = Profile.Settings.TouchpadMinSwipeDistance;
+        _keyboardHook.IsEnabled = Profile.Settings.IsEnabled && !_isRecording && Profile.Settings.EnableKeyboardChords;
+        _keyboardHook.SimultaneousWindowMs = Profile.Settings.ChordSimultaneousWindowMs;
+        _keyboardHook.SequenceTimeoutMs = Profile.Settings.ChordSequenceTimeoutMs;
         _overlay.Configure(
             Profile.Settings.TrailColorHex,
             Profile.Settings.TrailThickness,
@@ -211,6 +236,25 @@ public sealed class GestureEngineService : IDisposable
         }
 
         return ranked.Count > 0 ? ranked[0].Gesture!.Name : null;
+    }
+
+    private void OnChordMatched(GestureRule rule, ForegroundAppInfo foreground)
+    {
+        bool executed = TryExecuteRule(rule, foreground.WindowHandle);
+        if (executed && Profile.Settings.ShowRippleEffect && NativeMethods.GetCursorPos(out var pt))
+        {
+            ConfigureOverlayForCurrentApp(foreground.ProcessName);
+            _overlay.TriggerRipple(new GesturePoint(pt.X, pt.Y));
+        }
+
+        string chordLabel = ChordKeyHelper.FormatChord(rule.KeyboardChord);
+        RecordActivity(new GestureActivityItem(
+            DateTimeOffset.Now,
+            $"Chord: {chordLabel}",
+            rule.Name,
+            string.IsNullOrEmpty(foreground.ProcessName) ? "Desktop" : foreground.ProcessName,
+            1.0,
+            executed));
     }
 
     private void OnHotCornerTriggered(string corner, string actionCommand, GesturePoint pt)
@@ -597,6 +641,7 @@ public sealed class GestureEngineService : IDisposable
         _hotCorners.Dispose();
         _hook.Dispose();
         _touchpadHook.Dispose();
+        _keyboardHook.Dispose();
         _overlay.Dispose();
     }
 }

@@ -1,4 +1,5 @@
 using Flick.App.Helpers;
+using Flick.Core.Keyboard;
 using Flick.Core.Models;
 using Flick.Core.Recognition;
 using Flick.Core.Touchpad;
@@ -26,6 +27,7 @@ public sealed class RuleRowViewModel
     public required IReadOnlyList<TapDotViewModel> TapDots { get; init; }
     public required Visibility StrokeVisibility { get; init; }
     public required Visibility TapIconVisibility { get; init; }
+    public required Visibility ChordIconVisibility { get; init; }
 }
 
 public sealed partial class RulesPage : Page
@@ -106,8 +108,11 @@ public sealed partial class RulesPage : Page
                 continue;
             }
 
+            bool isChord = rule.TriggerType == TriggerType.KeyboardChord;
             gestureMap.TryGetValue(rule.GestureId, out var gesture);
-            string gestureName = gesture?.Name ?? "Unknown Gesture";
+            string gestureName = isChord
+                ? ChordKeyHelper.FormatChord(rule.KeyboardChord)
+                : (gesture?.Name ?? "Unknown Gesture");
 
             if (!string.IsNullOrEmpty(query) &&
                 !rule.Name.Contains(query, StringComparison.OrdinalIgnoreCase) &&
@@ -118,18 +123,20 @@ public sealed partial class RulesPage : Page
                 continue;
             }
 
-            string sourceLabel = rule.InputSource switch
-            {
-                GestureInputSource.Touchpad when rule.FingerCount > 0 => $"{rule.FingerCount}-Finger Touchpad",
-                GestureInputSource.Touchpad => "Touchpad",
-                GestureInputSource.Mouse => "Mouse",
-                _ => "Any Input"
-            };
+            string sourceLabel = isChord
+                ? (rule.KeyboardChord?.Mode == KeyboardChordMode.Sequential ? "Sequential Chord" : "Simultaneous Chord")
+                : rule.InputSource switch
+                {
+                    GestureInputSource.Touchpad when rule.FingerCount > 0 => $"{rule.FingerCount}-Finger Touchpad",
+                    GestureInputSource.Touchpad => "Touchpad",
+                    GestureInputSource.Mouse => "Mouse",
+                    _ => "Any Input"
+                };
             string scopeLabel = rule.IsGlobal ? "Global" : rule.ApplicationFilter;
 
-            bool isTap = string.Equals(rule.GestureId, "builtin-tap", StringComparison.Ordinal);
-            string repBadge = rule.RequiredRepetitions > 1 ? $" • {rule.RequiredRepetitions}×" : "";
-            string seqBadge = rule.FollowUpGestures is { Count: > 0 } ? $" • {1 + rule.FollowUpGestures.Count}-Step" : "";
+            bool isTap = !isChord && string.Equals(rule.GestureId, "builtin-tap", StringComparison.Ordinal);
+            string repBadge = !isChord && rule.RequiredRepetitions > 1 ? $" • {rule.RequiredRepetitions}×" : "";
+            string seqBadge = !isChord && rule.FollowUpGestures is { Count: > 0 } ? $" • {1 + rule.FollowUpGestures.Count}-Step" : "";
             items.Add(new RuleRowViewModel
             {
                 Id = rule.Id,
@@ -137,10 +144,11 @@ public sealed partial class RulesPage : Page
                 ScopeBadge = $"{scopeLabel} • {sourceLabel}{repBadge}{seqBadge}",
                 ActionSummary = $"{gestureName}  →  {rule.ActionType}: {rule.ActionPayload}",
                 IsEnabled = rule.IsEnabled,
-                PreviewStrokes = !isTap ? BuildPreviewStrokes(gesture) : [],
+                PreviewStrokes = !isChord && !isTap ? BuildPreviewStrokes(gesture) : [],
                 TapDots = isTap ? BuildPreviewTapDots(rule) : [],
-                StrokeVisibility = isTap ? Visibility.Collapsed : Visibility.Visible,
-                TapIconVisibility = isTap ? Visibility.Visible : Visibility.Collapsed
+                StrokeVisibility = !isChord && !isTap ? Visibility.Visible : Visibility.Collapsed,
+                TapIconVisibility = isTap ? Visibility.Visible : Visibility.Collapsed,
+                ChordIconVisibility = isChord ? Visibility.Visible : Visibility.Collapsed
             });
         }
 
@@ -260,7 +268,19 @@ public sealed partial class RulesPage : Page
         var copy = new GestureRule
         {
             Name = $"{src.Name} (Copy)",
+            TriggerType = src.TriggerType,
             GestureId = src.GestureId,
+            KeyboardChord = src.KeyboardChord is null ? null : new KeyboardChordDefinition
+            {
+                Mode = src.KeyboardChord.Mode,
+                TimeoutMs = src.KeyboardChord.TimeoutMs,
+                SuppressKeys = src.KeyboardChord.SuppressKeys,
+                Steps = src.KeyboardChord.Steps.Select(s => new ChordStep
+                {
+                    Modifiers = s.Modifiers,
+                    KeyCodes = [.. s.KeyCodes]
+                }).ToList()
+            },
             ApplicationFilter = src.ApplicationFilter,
             WindowTitleFilter = src.WindowTitleFilter,
             RequiredModifiers = src.RequiredModifiers,
@@ -1589,10 +1609,41 @@ public sealed partial class RulesPage : Page
         triggerOptionsRow.Children.Add(addFollowUpBtn);
         triggerOptionsRow.Children.Add(repeatBox);
 
-        // Step 1: Gesture Pad + Trigger Sequence
-        var step1Panel = new StackPanel { Spacing = 8, Width = padWidth };
-        step1Panel.Children.Add(drawPadBorder);
-        step1Panel.Children.Add(new Grid
+        // Step 1: Trigger Type Selector + Gesture Pad + Keyboard Chord Recorder
+        var workingChord = rule.KeyboardChord is not null
+            ? new KeyboardChordDefinition
+            {
+                Mode = rule.KeyboardChord.Mode,
+                TimeoutMs = rule.KeyboardChord.TimeoutMs,
+                SuppressKeys = rule.KeyboardChord.SuppressKeys,
+                Steps = rule.KeyboardChord.Steps.Select(s => new ChordStep
+                {
+                    Modifiers = s.Modifiers,
+                    KeyCodes = [.. s.KeyCodes]
+                }).ToList()
+            }
+            : new KeyboardChordDefinition();
+
+        var selectedTriggerType = rule.TriggerType;
+        bool isRecordingChord = false;
+        var simRecordedKeys = new List<int>();
+        var simHeldKeys = new HashSet<int>();
+        var simRecordedMods = ChordModifiers.None;
+
+        var triggerTypeCombo = new ComboBox
+        {
+            Header = "Trigger Type",
+            HorizontalAlignment = HorizontalAlignment.Stretch
+        };
+        var gestureTriggerItem = new ComboBoxItem { Content = "Mouse / Touchpad Gesture", Tag = TriggerType.Gesture };
+        var chordTriggerItem = new ComboBoxItem { Content = "Keyboard Chord", Tag = TriggerType.KeyboardChord };
+        triggerTypeCombo.Items.Add(gestureTriggerItem);
+        triggerTypeCombo.Items.Add(chordTriggerItem);
+        triggerTypeCombo.SelectedItem = selectedTriggerType == TriggerType.KeyboardChord ? chordTriggerItem : gestureTriggerItem;
+
+        var gestureTriggerPanel = new StackPanel { Spacing = 8 };
+        gestureTriggerPanel.Children.Add(drawPadBorder);
+        gestureTriggerPanel.Children.Add(new Grid
         {
             Children =
             {
@@ -1600,9 +1651,213 @@ public sealed partial class RulesPage : Page
                 new StackPanel { HorizontalAlignment = HorizontalAlignment.Right, Children = { clearPadBtn } }
             }
         });
-        step1Panel.Children.Add(drawStatusText);
-        step1Panel.Children.Add(sequenceListPanel);
-        step1Panel.Children.Add(triggerOptionsRow);
+        gestureTriggerPanel.Children.Add(drawStatusText);
+        gestureTriggerPanel.Children.Add(sequenceListPanel);
+        gestureTriggerPanel.Children.Add(triggerOptionsRow);
+
+        var chordModeCombo = new ComboBox
+        {
+            Header = "Chord Mode",
+            HorizontalAlignment = HorizontalAlignment.Stretch
+        };
+        var simModeItem = new ComboBoxItem { Content = "Simultaneous (press keys together, e.g. J+K)", Tag = KeyboardChordMode.Simultaneous };
+        var seqModeItem = new ComboBoxItem { Content = "Sequential (leader sequence, e.g. Ctrl+K → B)", Tag = KeyboardChordMode.Sequential };
+        chordModeCombo.Items.Add(simModeItem);
+        chordModeCombo.Items.Add(seqModeItem);
+        chordModeCombo.SelectedItem = workingChord.Mode == KeyboardChordMode.Sequential ? seqModeItem : simModeItem;
+
+        var chordPreviewText = new TextBlock
+        {
+            Text = ChordKeyHelper.FormatChord(workingChord),
+            Style = (Style)Application.Current.Resources["SubtitleTextBlockStyle"],
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+            TextWrapping = TextWrapping.Wrap
+        };
+        var chordPreviewBorder = new Border
+        {
+            Height = 76,
+            CornerRadius = new CornerRadius(10),
+            Padding = new Thickness(12),
+            Background = (Brush)Application.Current.Resources["SubtleFillColorSecondaryBrush"],
+            BorderBrush = (Brush)Application.Current.Resources["ControlStrokeColorDefaultBrush"],
+            BorderThickness = new Thickness(1),
+            Child = chordPreviewText
+        };
+
+        var chordStatusText = new TextBlock
+        {
+            Text = workingChord.Mode == KeyboardChordMode.Sequential
+                ? "Click Record Chord, press each step in order, then click Done Recording."
+                : "Click Record Chord and press the chord keys together.",
+            Style = (Style)Application.Current.Resources["CaptionTextBlockStyle"],
+            Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"],
+            TextWrapping = TextWrapping.Wrap
+        };
+
+        var recordChordBtn = new Button
+        {
+            Content = "Record Chord",
+            Style = (Style)Application.Current.Resources["AccentButtonStyle"],
+            HorizontalAlignment = HorizontalAlignment.Stretch
+        };
+        var clearChordBtn = new Button { Content = "Clear" };
+        var suppressKeysCheck = new CheckBox
+        {
+            Content = "Suppress matched keystrokes from active app",
+            IsChecked = workingChord.SuppressKeys
+        };
+
+        void RefreshChordPreview()
+        {
+            chordPreviewText.Text = ChordKeyHelper.FormatChord(workingChord);
+        }
+
+        void StopChordRecording()
+        {
+            if (!isRecordingChord) return;
+            isRecordingChord = false;
+            App.Engine.EndChordRecording();
+            recordChordBtn.Content = "Record Chord";
+            chordPreviewBorder.BorderBrush = (Brush)Application.Current.Resources["ControlStrokeColorDefaultBrush"];
+            chordPreviewBorder.BorderThickness = new Thickness(1);
+            chordStatusText.Text = workingChord.Steps.Count > 0
+                ? $"Recorded: {ChordKeyHelper.FormatChord(workingChord)}"
+                : "Click Record Chord to capture keys.";
+        }
+
+        recordChordBtn.Click += (_, _) =>
+        {
+            if (isRecordingChord)
+            {
+                StopChordRecording();
+                return;
+            }
+
+            isRecordingChord = true;
+            simRecordedKeys.Clear();
+            simHeldKeys.Clear();
+            simRecordedMods = ChordModifiers.None;
+            workingChord.Steps.Clear();
+            RefreshChordPreview();
+
+            recordChordBtn.Content = "Done Recording";
+            chordPreviewBorder.BorderBrush = (Brush)Application.Current.Resources["AccentFillColorDefaultBrush"];
+            chordPreviewBorder.BorderThickness = new Thickness(2);
+            chordStatusText.Text = workingChord.Mode == KeyboardChordMode.Sequential
+                ? "● Recording Sequential — press each key/combo in order, then click Done Recording."
+                : "● Recording Simultaneous — press chord keys together, then release.";
+
+            App.Engine.BeginChordRecording((vk, isDown, mods) =>
+            {
+                if (ChordKeyHelper.IsModifierKey(vk))
+                {
+                    return true;
+                }
+
+                if (workingChord.Mode == KeyboardChordMode.Simultaneous)
+                {
+                    if (isDown)
+                    {
+                        simHeldKeys.Add(vk);
+                        if (!simRecordedKeys.Contains(vk))
+                        {
+                            simRecordedKeys.Add(vk);
+                        }
+                        simRecordedMods |= mods;
+                        workingChord.Steps =
+                        [
+                            new ChordStep { Modifiers = simRecordedMods, KeyCodes = [.. simRecordedKeys] }
+                        ];
+                        DispatcherQueue.TryEnqueue(RefreshChordPreview);
+                    }
+                    else
+                    {
+                        simHeldKeys.Remove(vk);
+                        if (simHeldKeys.Count == 0 && simRecordedKeys.Count > 0)
+                        {
+                            DispatcherQueue.TryEnqueue(StopChordRecording);
+                        }
+                    }
+                }
+                else
+                {
+                    if (isDown)
+                    {
+                        workingChord.Steps.Add(new ChordStep { Modifiers = mods, KeyCodes = [vk] });
+                        DispatcherQueue.TryEnqueue(() =>
+                        {
+                            RefreshChordPreview();
+                            chordStatusText.Text = $"● Step {workingChord.Steps.Count} recorded — press next key or click Done Recording.";
+                        });
+                    }
+                }
+
+                return true;
+            });
+        };
+
+        clearChordBtn.Click += (_, _) =>
+        {
+            StopChordRecording();
+            workingChord.Steps.Clear();
+            RefreshChordPreview();
+        };
+
+        chordModeCombo.SelectionChanged += (_, _) =>
+        {
+            StopChordRecording();
+            if ((chordModeCombo.SelectedItem as ComboBoxItem)?.Tag is KeyboardChordMode mode)
+            {
+                workingChord.Mode = mode;
+                workingChord.Steps.Clear();
+                RefreshChordPreview();
+                chordStatusText.Text = mode == KeyboardChordMode.Sequential
+                    ? "Click Record Chord, press each step in order, then click Done Recording."
+                    : "Click Record Chord and press the chord keys together.";
+            }
+        };
+
+        var chordBtnRow = new Grid { ColumnSpacing = 8 };
+        chordBtnRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        chordBtnRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        Grid.SetColumn(recordChordBtn, 0);
+        Grid.SetColumn(clearChordBtn, 1);
+        chordBtnRow.Children.Add(recordChordBtn);
+        chordBtnRow.Children.Add(clearChordBtn);
+
+        var chordTriggerPanel = new StackPanel { Spacing = 10 };
+        chordTriggerPanel.Children.Add(chordModeCombo);
+        chordTriggerPanel.Children.Add(chordPreviewBorder);
+        chordTriggerPanel.Children.Add(chordBtnRow);
+        chordTriggerPanel.Children.Add(chordStatusText);
+        chordTriggerPanel.Children.Add(suppressKeysCheck);
+
+        void UpdateTriggerTypeVisibility()
+        {
+            bool isChordMode = selectedTriggerType == TriggerType.KeyboardChord;
+            gestureTriggerPanel.Visibility = isChordMode ? Visibility.Collapsed : Visibility.Visible;
+            chordTriggerPanel.Visibility = isChordMode ? Visibility.Visible : Visibility.Collapsed;
+            if (!isChordMode)
+            {
+                StopChordRecording();
+            }
+        }
+
+        triggerTypeCombo.SelectionChanged += (_, _) =>
+        {
+            if ((triggerTypeCombo.SelectedItem as ComboBoxItem)?.Tag is TriggerType tt)
+            {
+                selectedTriggerType = tt;
+                UpdateTriggerTypeVisibility();
+            }
+        };
+        UpdateTriggerTypeVisibility();
+
+        var step1Panel = new StackPanel { Spacing = 10, Width = padWidth };
+        step1Panel.Children.Add(triggerTypeCombo);
+        step1Panel.Children.Add(gestureTriggerPanel);
+        step1Panel.Children.Add(chordTriggerPanel);
 
         // Step 2: Action
         var step2Panel = new StackPanel { Spacing = 12, HorizontalAlignment = HorizontalAlignment.Stretch, Visibility = Visibility.Collapsed };
@@ -1858,35 +2113,52 @@ public sealed partial class RulesPage : Page
                 ? (chosenPreset?.Label ?? "Untitled Action")
                 : nameBox.Text.Trim();
 
-            if (!string.IsNullOrEmpty(recordedBuiltInId))
+            rule.TriggerType = selectedTriggerType;
+            if (selectedTriggerType == TriggerType.KeyboardChord)
             {
-                rule.GestureId = recordedBuiltInId;
-                rule.PreviewTapPoints = recordedBuiltInId == "builtin-tap" && recordedTapPoints.Count > 0
-                    ? [.. recordedTapPoints]
-                    : null;
+                workingChord.SuppressKeys = suppressKeysCheck.IsChecked == true;
+                rule.KeyboardChord = workingChord;
+                rule.FollowUpGestures = null;
             }
-            else if (drawnPoints.Count >= 2)
+            else
             {
-                var customGesture = new GestureDefinition
+                rule.KeyboardChord = null;
+                if (!string.IsNullOrEmpty(recordedBuiltInId))
                 {
-                    Name = $"{rule.Name} Shape",
-                    Description = drawnFingerStrokes.Count > 1
-                        ? $"{drawnFingerStrokes.Count}-finger custom gesture"
-                        : "Custom recorded gesture",
-                    IsBuiltIn = false,
-                    Points = [.. GestureRecognizer.Resample(drawnPoints, 32)],
-                    FingerStrokes = drawnFingerStrokes.Count > 1 ? [.. drawnFingerStrokes] : null
-                };
-                App.Engine.Profile.Gestures.Add(customGesture);
-                rule.GestureId = customGesture.Id;
-            }
-            else if (existingGesture is not null)
-            {
-                rule.GestureId = existingGesture.Id;
+                    rule.GestureId = recordedBuiltInId;
+                    rule.PreviewTapPoints = recordedBuiltInId == "builtin-tap" && recordedTapPoints.Count > 0
+                        ? [.. recordedTapPoints]
+                        : null;
+                }
+                else if (drawnPoints.Count >= 2)
+                {
+                    var customGesture = new GestureDefinition
+                    {
+                        Name = $"{rule.Name} Shape",
+                        Description = drawnFingerStrokes.Count > 1
+                            ? $"{drawnFingerStrokes.Count}-finger custom gesture"
+                            : "Custom recorded gesture",
+                        IsBuiltIn = false,
+                        Points = [.. GestureRecognizer.Resample(drawnPoints, 32)],
+                        FingerStrokes = drawnFingerStrokes.Count > 1 ? [.. drawnFingerStrokes] : null
+                    };
+                    App.Engine.Profile.Gestures.Add(customGesture);
+                    rule.GestureId = customGesture.Id;
+                }
+                else if (existingGesture is not null)
+                {
+                    rule.GestureId = existingGesture.Id;
+                }
+
+                rule.InputSource = detectedSource;
+                rule.FingerCount = detectedFingers;
+                foreach (var fg in pendingCustomFollowUpGestures)
+                {
+                    App.Engine.Profile.Gestures.Add(fg);
+                }
+                rule.FollowUpGestures = followUpSteps.Count > 0 ? [.. followUpSteps] : null;
             }
 
-            rule.InputSource = detectedSource;
-            rule.FingerCount = detectedFingers;
             rule.ApplicationFilter = string.IsNullOrWhiteSpace(appBox.Text) ? "*" : appBox.Text.Trim();
             rule.WindowTitleFilter = string.IsNullOrWhiteSpace(titleFilterBox.Text) ? null : titleFilterBox.Text.Trim();
 
@@ -1896,12 +2168,6 @@ public sealed partial class RulesPage : Page
             if (shiftCheck.IsChecked == true) mods |= ModifierKeyFilter.Shift;
             rule.RequiredModifiers = mods;
             rule.RequiredRepetitions = double.IsNaN(repeatBox.Value) ? 1 : Math.Clamp((int)repeatBox.Value, 1, 5);
-
-            foreach (var fg in pendingCustomFollowUpGestures)
-            {
-                App.Engine.Profile.Gestures.Add(fg);
-            }
-            rule.FollowUpGestures = followUpSteps.Count > 0 ? [.. followUpSteps] : null;
 
             rule.Steps = macroSteps.Count > 0 ? [.. macroSteps] : null;
             rule.ActionType = chosenPreset?.OverrideType ?? selectedCategory.PrimaryType;
@@ -1913,6 +2179,7 @@ public sealed partial class RulesPage : Page
         }
         finally
         {
+            StopChordRecording();
             App.Engine.EndRecording();
         }
     }

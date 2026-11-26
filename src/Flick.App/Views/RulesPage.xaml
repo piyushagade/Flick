@@ -131,6 +131,12 @@
                                                 </DataTemplate>
                                             </ItemsControl.ItemTemplate>
                                         </ItemsControl>
+                                        <FontIcon
+                                            Glyph="&#xE765;"
+                                            FontSize="20"
+                                            Visibility="{Binding ChordIconVisibility}"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center" />
                                     </Grid>
                                 </Border>
 
