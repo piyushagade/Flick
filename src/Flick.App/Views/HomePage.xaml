@@ -61,8 +61,8 @@
                         VerticalAlignment="Center"
                         HorizontalAlignment="Right"
                         MinWidth="0"
-                        OnContent="Active"
-                        OffContent="Paused"
+                        OnContent=""
+                        OffContent=""
                         Toggled="EngineToggle_Toggled" />
                 </Grid>
             </Border>
