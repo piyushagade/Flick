@@ -1887,9 +1887,7 @@ public sealed partial class RulesPage : Page
             : new KnockPatternDefinition();
 
         bool isRecordingKnock = false;
-        bool isCalibratingSurface = false;
         var recordedKnocks = new List<KnockOnsetEvent>();
-        var calibrationSamples = new List<float[]>();
 
         var knockSurfaceCombo = new ComboBox
         {
@@ -2165,12 +2163,10 @@ public sealed partial class RulesPage : Page
 
         void StopKnockRecording()
         {
-            if (!isRecordingKnock && !isCalibratingSurface) return;
+            if (!isRecordingKnock) return;
             isRecordingKnock = false;
-            isCalibratingSurface = false;
             App.Engine.EndKnockRecording();
             recordKnockBtn.Content = "Record Pattern";
-            calibrateSurfaceBtn.Content = "Calibrate (5×)";
             knockTimelineBorder.BorderBrush = (Brush)Application.Current.Resources["ControlStrokeColorDefaultBrush"];
             knockTimelineBorder.BorderThickness = new Thickness(1);
         }
@@ -2222,61 +2218,6 @@ public sealed partial class RulesPage : Page
             });
         };
 
-        calibrateSurfaceBtn.Click += (_, _) =>
-        {
-            if (isCalibratingSurface)
-            {
-                StopKnockRecording();
-                RenderKnockTimeline();
-                knockStatusText.Text = "Surface calibration cancelled.";
-                return;
-            }
-
-            string surfName = string.IsNullOrWhiteSpace(calSurfaceNameCombo.Text)
-                ? "Custom Surface"
-                : calSurfaceNameCombo.Text.Trim();
-
-            StopKnockRecording();
-            isCalibratingSurface = true;
-            calibrationSamples.Clear();
-            RenderKnockTimeline(calProgress: 0);
-            knockTimelineBorder.BorderBrush = (Brush)Application.Current.Resources["AccentFillColorDefaultBrush"];
-            knockTimelineBorder.BorderThickness = new Thickness(2);
-            calibrateSurfaceBtn.Content = "Cancel";
-            knockStatusText.Text = $"● Knock 5 times on \"{surfName}\" (0/5)...";
-
-            App.Engine.BeginKnockRecording(ev =>
-            {
-                calibrationSamples.Add(ev.Features);
-                int count = calibrationSamples.Count;
-                DispatcherQueue.TryEnqueue(() =>
-                {
-                    if (count < 5)
-                    {
-                        RenderKnockTimeline(calProgress: count);
-                        knockStatusText.Text = $"● Knock 5 times on \"{surfName}\" ({count}/5)...";
-                        return;
-                    }
-
-                    StopKnockRecording();
-                    var surfaces = App.Engine.Profile.Settings.KnockSurfaces;
-                    var existing = surfaces.FirstOrDefault(s => string.Equals(s.Name, surfName, StringComparison.OrdinalIgnoreCase));
-                    if (existing is null)
-                    {
-                        existing = new KnockSurfaceProfile { Name = surfName };
-                        surfaces.Add(existing);
-                    }
-                    existing.SampleFeatures = [.. calibrationSamples];
-                    App.Engine.SaveProfile();
-                    workingKnock.SurfaceProfileId = existing.Id;
-                    workingKnock.SurfaceName = existing.Name;
-                    RefreshKnockSurfaceCombo(existing.Id);
-                    RenderKnockTimeline();
-                    knockStatusText.Text = $"Calibrated \"{surfName}\" with 5 samples!";
-                });
-            });
-        };
-
         var knockTopRow = new Grid { ColumnSpacing = 8 };
         knockTopRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         knockTopRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(120) });
@@ -2285,21 +2226,12 @@ public sealed partial class RulesPage : Page
         knockTopRow.Children.Add(knockSurfaceCombo);
         knockTopRow.Children.Add(knockCountBox);
 
-        var calRow = new Grid { ColumnSpacing = 8 };
-        calRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        calRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        Grid.SetColumn(calSurfaceNameCombo, 0);
-        Grid.SetColumn(calibrateSurfaceBtn, 1);
-        calRow.Children.Add(calSurfaceNameCombo);
-        calRow.Children.Add(calibrateSurfaceBtn);
-
         var knockTriggerPanel = new StackPanel { Spacing = 8 };
         knockTriggerPanel.Children.Add(knockTimelineBorder);
         knockTriggerPanel.Children.Add(knockStatusText);
         knockTriggerPanel.Children.Add(knockTopRow);
         knockTriggerPanel.Children.Add(recordKnockBtn);
         knockTriggerPanel.Children.Add(useRhythmCheck);
-        knockTriggerPanel.Children.Add(calRow);
 
         void UpdateTriggerTypeVisibility()
         {
