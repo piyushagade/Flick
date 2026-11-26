@@ -1942,11 +1942,186 @@ public sealed partial class RulesPage : Page
             SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Compact,
             HorizontalAlignment = HorizontalAlignment.Stretch
         };
+        var knockTimelineCanvas = new Canvas
+        {
+            Width = padWidth - 24,
+            Height = 76
+        };
+        var knockTimelineBorder = new Border
+        {
+            Height = 92,
+            CornerRadius = new CornerRadius(10),
+            Padding = new Thickness(12, 8, 12, 8),
+            Background = (Brush)Application.Current.Resources["SubtleFillColorSecondaryBrush"],
+            BorderBrush = (Brush)Application.Current.Resources["ControlStrokeColorDefaultBrush"],
+            BorderThickness = new Thickness(1),
+            Child = knockTimelineCanvas
+        };
+
+        void RenderKnockTimeline(IReadOnlyList<KnockOnsetEvent>? liveEvents = null, int? calProgress = null)
+        {
+            knockTimelineCanvas.Children.Clear();
+            double w = padWidth - 24;
+            double midY = 44;
+
+            var accentBrush = (Brush)Application.Current.Resources["AccentFillColorDefaultBrush"];
+            var secondaryBrush = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"];
+            var dividerBrush = (Brush)Application.Current.Resources["DividerStrokeColorDefaultBrush"];
+
+            // Baseline track
+            var track = new Line
+            {
+                X1 = 16,
+                Y1 = midY,
+                X2 = w - 16,
+                Y2 = midY,
+                Stroke = dividerBrush,
+                StrokeThickness = 2
+            };
+            knockTimelineCanvas.Children.Add(track);
+
+            if (calProgress.HasValue)
+            {
+                int done = calProgress.Value;
+                for (int i = 0; i < 5; i++)
+                {
+                    double x = 28 + i * ((w - 56) / 4.0);
+                    bool filled = i < done;
+                    var dot = new Ellipse
+                    {
+                        Width = filled ? 18 : 14,
+                        Height = filled ? 18 : 14,
+                        Fill = filled ? accentBrush : new SolidColorBrush(Microsoft.UI.Colors.Transparent),
+                        Stroke = filled ? accentBrush : secondaryBrush,
+                        StrokeThickness = 2
+                    };
+                    Canvas.SetLeft(dot, x - dot.Width / 2);
+                    Canvas.SetTop(dot, midY - dot.Height / 2);
+                    knockTimelineCanvas.Children.Add(dot);
+                }
+                return;
+            }
+
+            if (liveEvents is { Count: > 0 })
+            {
+                long t0 = liveEvents[0].TimestampMs;
+                long span = Math.Max(1, liveEvents[^1].TimestampMs - t0);
+                double usableW = w - 48;
+
+                double prevX = 0;
+                for (int i = 0; i < liveEvents.Count; i++)
+                {
+                    double normX = liveEvents.Count == 1 ? 0.5 : (double)(liveEvents[i].TimestampMs - t0) / span;
+                    double x = 24 + normX * usableW;
+                    double barH = Math.Clamp(liveEvents[i].PeakAmplitude * 75.0, 12, 34);
+
+                    if (i > 0)
+                    {
+                        long dt = liveEvents[i].TimestampMs - liveEvents[i - 1].TimestampMs;
+                        var dtLabel = new TextBlock
+                        {
+                            Text = $"{dt}ms",
+                            FontSize = 10,
+                            Foreground = secondaryBrush
+                        };
+                        Canvas.SetLeft(dtLabel, (prevX + x) / 2 - 14);
+                        Canvas.SetTop(dtLabel, midY + 12);
+                        knockTimelineCanvas.Children.Add(dtLabel);
+                    }
+
+                    var bar = new Border
+                    {
+                        Width = 6,
+                        Height = barH,
+                        CornerRadius = new CornerRadius(3),
+                        Background = accentBrush
+                    };
+                    Canvas.SetLeft(bar, x - 3);
+                    Canvas.SetTop(bar, midY - barH);
+                    knockTimelineCanvas.Children.Add(bar);
+
+                    var ring = new Ellipse
+                    {
+                        Width = 14,
+                        Height = 14,
+                        Fill = accentBrush
+                    };
+                    Canvas.SetLeft(ring, x - 7);
+                    Canvas.SetTop(ring, midY - 7);
+                    knockTimelineCanvas.Children.Add(ring);
+
+                    prevX = x;
+                }
+                return;
+            }
+
+            // Static preview from workingKnock (KnockCount + optional RhythmRatios)
+            int count = Math.Clamp(workingKnock.KnockCount, 1, 6);
+            double[] positions = new double[count];
+            if (count == 1)
+            {
+                positions[0] = 0.5;
+            }
+            else if (workingKnock.RhythmRatios.Count == count - 1)
+            {
+                double totalRatio = workingKnock.RhythmRatios.Sum();
+                double acc = 0;
+                positions[0] = 0;
+                for (int i = 0; i < workingKnock.RhythmRatios.Count; i++)
+                {
+                    acc += workingKnock.RhythmRatios[i];
+                    positions[i + 1] = acc / Math.Max(0.1, totalRatio);
+                }
+            }
+            else
+            {
+                for (int i = 0; i < count; i++) positions[i] = (double)i / (count - 1);
+            }
+
+            for (int i = 0; i < count; i++)
+            {
+                double x = 28 + positions[i] * (w - 56);
+                var bar = new Border
+                {
+                    Width = 6,
+                    Height = 22,
+                    CornerRadius = new CornerRadius(3),
+                    Background = accentBrush,
+                    Opacity = 0.75
+                };
+                Canvas.SetLeft(bar, x - 3);
+                Canvas.SetTop(bar, midY - 22);
+                knockTimelineCanvas.Children.Add(bar);
+
+                var dot = new Ellipse
+                {
+                    Width = 14,
+                    Height = 14,
+                    Fill = accentBrush
+                };
+                Canvas.SetLeft(dot, x - 7);
+                Canvas.SetTop(dot, midY - 7);
+                knockTimelineCanvas.Children.Add(dot);
+
+                var num = new TextBlock
+                {
+                    Text = $"#{i + 1}",
+                    FontSize = 10,
+                    Foreground = secondaryBrush
+                };
+                Canvas.SetLeft(num, x - 6);
+                Canvas.SetTop(num, midY + 11);
+                knockTimelineCanvas.Children.Add(num);
+            }
+        }
+        RenderKnockTimeline();
+
         knockCountBox.ValueChanged += (_, args) =>
         {
             if (!double.IsNaN(args.NewValue))
             {
                 workingKnock.KnockCount = Math.Clamp((int)args.NewValue, 1, 6);
+                if (!isRecordingKnock) RenderKnockTimeline();
             }
         };
 
@@ -1996,6 +2171,8 @@ public sealed partial class RulesPage : Page
             App.Engine.EndKnockRecording();
             recordKnockBtn.Content = "Record Pattern";
             calibrateSurfaceBtn.Content = "Calibrate (5×)";
+            knockTimelineBorder.BorderBrush = (Brush)Application.Current.Resources["ControlStrokeColorDefaultBrush"];
+            knockTimelineBorder.BorderThickness = new Thickness(1);
         }
 
         recordKnockBtn.Click += (_, _) =>
@@ -2009,8 +2186,13 @@ public sealed partial class RulesPage : Page
                     knockCountBox.Value = workingKnock.KnockCount;
                     workingKnock.RhythmRatios = KnockPatternMatcher.ComputeRhythmRatios(recordedKnocks);
                     useRhythmCheck.IsChecked = workingKnock.RhythmRatios.Count > 0;
+                    RenderKnockTimeline(recordedKnocks);
                     knockStatusText.Text = $"Recorded {workingKnock.KnockCount}× knock" +
                         (workingKnock.RhythmRatios.Count > 0 ? $" (cadence {string.Join(":", workingKnock.RhythmRatios)})" : "") + ".";
+                }
+                else
+                {
+                    RenderKnockTimeline();
                 }
                 return;
             }
@@ -2018,19 +2200,24 @@ public sealed partial class RulesPage : Page
             StopKnockRecording();
             isRecordingKnock = true;
             recordedKnocks.Clear();
+            RenderKnockTimeline(recordedKnocks);
+            knockTimelineBorder.BorderBrush = (Brush)Application.Current.Resources["AccentFillColorDefaultBrush"];
+            knockTimelineBorder.BorderThickness = new Thickness(2);
             recordKnockBtn.Content = "Done Recording";
             knockStatusText.Text = "● Listening — knock your pattern now, then click Done Recording.";
 
             App.Engine.BeginKnockRecording(ev =>
             {
                 recordedKnocks.Add(ev);
+                var snapshot = recordedKnocks.ToArray();
                 var surfRes = KnockSurfaceClassifier.Classify(ev.Features, App.Engine.Profile.Settings.KnockSurfaces);
                 DispatcherQueue.TryEnqueue(() =>
                 {
+                    RenderKnockTimeline(snapshot);
                     string surfInfo = surfRes.Surface is not null
                         ? $" • {surfRes.Surface.Name} ({surfRes.Confidence:P0})"
                         : "";
-                    knockStatusText.Text = $"● Captured {recordedKnocks.Count} knock(s){surfInfo}";
+                    knockStatusText.Text = $"● Captured {snapshot.Length} knock(s){surfInfo}";
                 });
             });
         };
@@ -2040,6 +2227,7 @@ public sealed partial class RulesPage : Page
             if (isCalibratingSurface)
             {
                 StopKnockRecording();
+                RenderKnockTimeline();
                 knockStatusText.Text = "Surface calibration cancelled.";
                 return;
             }
@@ -2051,6 +2239,9 @@ public sealed partial class RulesPage : Page
             StopKnockRecording();
             isCalibratingSurface = true;
             calibrationSamples.Clear();
+            RenderKnockTimeline(calProgress: 0);
+            knockTimelineBorder.BorderBrush = (Brush)Application.Current.Resources["AccentFillColorDefaultBrush"];
+            knockTimelineBorder.BorderThickness = new Thickness(2);
             calibrateSurfaceBtn.Content = "Cancel";
             knockStatusText.Text = $"● Knock 5 times on \"{surfName}\" (0/5)...";
 
@@ -2062,6 +2253,7 @@ public sealed partial class RulesPage : Page
                 {
                     if (count < 5)
                     {
+                        RenderKnockTimeline(calProgress: count);
                         knockStatusText.Text = $"● Knock 5 times on \"{surfName}\" ({count}/5)...";
                         return;
                     }
@@ -2079,10 +2271,19 @@ public sealed partial class RulesPage : Page
                     workingKnock.SurfaceProfileId = existing.Id;
                     workingKnock.SurfaceName = existing.Name;
                     RefreshKnockSurfaceCombo(existing.Id);
+                    RenderKnockTimeline();
                     knockStatusText.Text = $"Calibrated \"{surfName}\" with 5 samples!";
                 });
             });
         };
+
+        var knockTopRow = new Grid { ColumnSpacing = 8 };
+        knockTopRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        knockTopRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(120) });
+        Grid.SetColumn(knockSurfaceCombo, 0);
+        Grid.SetColumn(knockCountBox, 1);
+        knockTopRow.Children.Add(knockSurfaceCombo);
+        knockTopRow.Children.Add(knockCountBox);
 
         var calRow = new Grid { ColumnSpacing = 8 };
         calRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -2092,13 +2293,13 @@ public sealed partial class RulesPage : Page
         calRow.Children.Add(calSurfaceNameCombo);
         calRow.Children.Add(calibrateSurfaceBtn);
 
-        var knockTriggerPanel = new StackPanel { Spacing = 10 };
-        knockTriggerPanel.Children.Add(knockSurfaceCombo);
-        knockTriggerPanel.Children.Add(knockCountBox);
+        var knockTriggerPanel = new StackPanel { Spacing = 8 };
+        knockTriggerPanel.Children.Add(knockTimelineBorder);
+        knockTriggerPanel.Children.Add(knockStatusText);
+        knockTriggerPanel.Children.Add(knockTopRow);
         knockTriggerPanel.Children.Add(recordKnockBtn);
         knockTriggerPanel.Children.Add(useRhythmCheck);
         knockTriggerPanel.Children.Add(calRow);
-        knockTriggerPanel.Children.Add(knockStatusText);
 
         void UpdateTriggerTypeVisibility()
         {
@@ -2212,7 +2413,12 @@ public sealed partial class RulesPage : Page
 
             stepIndicator.Text = step switch
             {
-                1 => "Step 1 of 3  •  Draw or swipe a gesture",
+                1 => selectedTriggerType switch
+                {
+                    TriggerType.KeyboardChord => "Step 1 of 3  •  Record a keyboard chord",
+                    TriggerType.KnockPattern => "Step 1 of 3  •  Configure or record a knock pattern",
+                    _ => "Step 1 of 3  •  Draw or swipe a gesture"
+                },
                 2 => "Step 2 of 3  •  Assign an action",
                 _ => "Step 3 of 3  •  Conditions & macro (optional)"
             };
