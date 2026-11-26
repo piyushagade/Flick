@@ -1660,8 +1660,8 @@ public sealed partial class RulesPage : Page
             Header = "Chord Mode",
             HorizontalAlignment = HorizontalAlignment.Stretch
         };
-        var simModeItem = new ComboBoxItem { Content = "Simultaneous (press keys together, e.g. J+K)", Tag = KeyboardChordMode.Simultaneous };
-        var seqModeItem = new ComboBoxItem { Content = "Sequential (leader sequence, e.g. Ctrl+K → B)", Tag = KeyboardChordMode.Sequential };
+        var simModeItem = new ComboBoxItem { Content = "Simultaneous (e.g. Ctrl+J+K)", Tag = KeyboardChordMode.Simultaneous };
+        var seqModeItem = new ComboBoxItem { Content = "Sequential (e.g. Ctrl+Z → K → L)", Tag = KeyboardChordMode.Sequential };
         chordModeCombo.Items.Add(simModeItem);
         chordModeCombo.Items.Add(seqModeItem);
         chordModeCombo.SelectedItem = workingChord.Mode == KeyboardChordMode.Sequential ? seqModeItem : simModeItem;
@@ -1688,8 +1688,8 @@ public sealed partial class RulesPage : Page
         var chordStatusText = new TextBlock
         {
             Text = workingChord.Mode == KeyboardChordMode.Sequential
-                ? "Click Record Chord, press each step in order, then click Done Recording."
-                : "Click Record Chord and press the chord keys together.",
+                ? "Click Record Chord, start with Modifier+Key (e.g. Ctrl+Z), press follow-up keys, then click Done Recording."
+                : "Click Record Chord and press Modifier + chord keys together (e.g. Ctrl+J+K).",
             Style = (Style)Application.Current.Resources["CaptionTextBlockStyle"],
             Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"],
             TextWrapping = TextWrapping.Wrap
@@ -1745,8 +1745,8 @@ public sealed partial class RulesPage : Page
             chordPreviewBorder.BorderBrush = (Brush)Application.Current.Resources["AccentFillColorDefaultBrush"];
             chordPreviewBorder.BorderThickness = new Thickness(2);
             chordStatusText.Text = workingChord.Mode == KeyboardChordMode.Sequential
-                ? "● Recording Sequential — press each key/combo in order, then click Done Recording."
-                : "● Recording Simultaneous — press chord keys together, then release.";
+                ? "● Recording Sequential — start with Modifier+Key (e.g. Ctrl+Z), then follow-up keys."
+                : "● Recording Simultaneous — hold Modifier (Ctrl/Alt/Shift/Win) + chord keys together, then release.";
 
             App.Engine.BeginChordRecording((vk, isDown, mods) =>
             {
@@ -1759,6 +1759,13 @@ public sealed partial class RulesPage : Page
                 {
                     if (isDown)
                     {
+                        if (simRecordedKeys.Count == 0 && mods == ChordModifiers.None)
+                        {
+                            DispatcherQueue.TryEnqueue(() =>
+                                chordStatusText.Text = "⚠ Start with a modifier key (Ctrl, Alt, Shift, or Win) + key.");
+                            return true;
+                        }
+
                         simHeldKeys.Add(vk);
                         if (!simRecordedKeys.Contains(vk))
                         {
@@ -1784,6 +1791,13 @@ public sealed partial class RulesPage : Page
                 {
                     if (isDown)
                     {
+                        if (workingChord.Steps.Count == 0 && mods == ChordModifiers.None)
+                        {
+                            DispatcherQueue.TryEnqueue(() =>
+                                chordStatusText.Text = "⚠ Step 1 must include a modifier key (Ctrl, Alt, Shift, or Win).");
+                            return true;
+                        }
+
                         workingChord.Steps.Add(new ChordStep { Modifiers = mods, KeyCodes = [vk] });
                         DispatcherQueue.TryEnqueue(() =>
                         {
@@ -1951,6 +1965,17 @@ public sealed partial class RulesPage : Page
 
         dialog.PrimaryButtonClick += (_, args) =>
         {
+            if (currentStep == 1 && selectedTriggerType == TriggerType.KeyboardChord)
+            {
+                StopChordRecording();
+                if (workingChord.Steps.Count == 0 || workingChord.Steps[0].Modifiers == ChordModifiers.None)
+                {
+                    args.Cancel = true;
+                    chordStatusText.Text = "⚠ Record a chord starting with a modifier key (Ctrl, Alt, Shift, or Win).";
+                    return;
+                }
+            }
+
             if (currentStep < 3)
             {
                 args.Cancel = true;

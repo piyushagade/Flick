@@ -37,38 +37,38 @@ public sealed class KeyboardChordTests
     public void Simultaneous_TwoKeyChord_MatchesAndSuppressesUp()
     {
         var engine = new KeyboardChordEngine();
-        var rules = new[] { MakeSimRule("JK", ['J', 'K']) };
+        var rules = new[] { MakeSimRule("CtrlJK", ['J', 'K'], ChordModifiers.Ctrl) };
 
-        var r1 = engine.ProcessKeyEvent('J', true, ChordModifiers.None, 100, rules, "notepad", null);
+        var r1 = engine.ProcessKeyEvent('J', true, ChordModifiers.Ctrl, 100, rules, "notepad", null);
         Assert.True(r1.SuppressCurrentEvent);
         Assert.Null(r1.MatchedRule);
 
-        var r2 = engine.ProcessKeyEvent('K', true, ChordModifiers.None, 120, rules, "notepad", null);
+        var r2 = engine.ProcessKeyEvent('K', true, ChordModifiers.Ctrl, 120, rules, "notepad", null);
         Assert.True(r2.SuppressCurrentEvent);
-        Assert.Equal("JK", r2.MatchedRule?.Name);
+        Assert.Equal("CtrlJK", r2.MatchedRule?.Name);
 
         // KeyUp for both J and K should also be suppressed.
-        Assert.True(engine.ProcessKeyEvent('J', false, ChordModifiers.None, 180, rules, "notepad", null).SuppressCurrentEvent);
-        Assert.True(engine.ProcessKeyEvent('K', false, ChordModifiers.None, 190, rules, "notepad", null).SuppressCurrentEvent);
+        Assert.True(engine.ProcessKeyEvent('J', false, ChordModifiers.Ctrl, 180, rules, "notepad", null).SuppressCurrentEvent);
+        Assert.True(engine.ProcessKeyEvent('K', false, ChordModifiers.Ctrl, 190, rules, "notepad", null).SuppressCurrentEvent);
     }
 
     [Fact]
     public void Simultaneous_FastTypingRelease_FlushesJBeforeK()
     {
         var engine = new KeyboardChordEngine();
-        var rules = new[] { MakeSimRule("JK", ['J', 'K']) };
+        var rules = new[] { MakeSimRule("CtrlJK", ['J', 'K'], ChordModifiers.Ctrl) };
 
-        var rDownJ = engine.ProcessKeyEvent('J', true, ChordModifiers.None, 100, rules, "notepad", null);
+        var rDownJ = engine.ProcessKeyEvent('J', true, ChordModifiers.Ctrl, 100, rules, "notepad", null);
         Assert.True(rDownJ.SuppressCurrentEvent);
 
-        // User releases J before pressing K -> fast typing "jk"
-        var rUpJ = engine.ProcessKeyEvent('J', false, ChordModifiers.None, 115, rules, "notepad", null);
+        // User releases J before pressing K
+        var rUpJ = engine.ProcessKeyEvent('J', false, ChordModifiers.Ctrl, 115, rules, "notepad", null);
         Assert.False(rUpJ.SuppressCurrentEvent);
         Assert.Equal(['J'], rUpJ.KeysToReplayDown);
         Assert.Null(rUpJ.MatchedRule);
 
-        // Now K is pressed -> buffered as new potential J+K start, not matched
-        var rDownK = engine.ProcessKeyEvent('K', true, ChordModifiers.None, 125, rules, "notepad", null);
+        // Now K is pressed -> buffered as new potential Ctrl+J+K start, not matched
+        var rDownK = engine.ProcessKeyEvent('K', true, ChordModifiers.Ctrl, 125, rules, "notepad", null);
         Assert.True(rDownK.SuppressCurrentEvent);
         Assert.Null(rDownK.MatchedRule);
     }
@@ -77,10 +77,10 @@ public sealed class KeyboardChordTests
     public void Simultaneous_NonMatchingSecondKey_FlushesBuffer()
     {
         var engine = new KeyboardChordEngine();
-        var rules = new[] { MakeSimRule("JK", ['J', 'K']) };
+        var rules = new[] { MakeSimRule("CtrlJK", ['J', 'K'], ChordModifiers.Ctrl) };
 
-        engine.ProcessKeyEvent('J', true, ChordModifiers.None, 100, rules, "notepad", null);
-        var rL = engine.ProcessKeyEvent('L', true, ChordModifiers.None, 120, rules, "notepad", null);
+        engine.ProcessKeyEvent('J', true, ChordModifiers.Ctrl, 100, rules, "notepad", null);
+        var rL = engine.ProcessKeyEvent('L', true, ChordModifiers.Ctrl, 120, rules, "notepad", null);
 
         Assert.False(rL.SuppressCurrentEvent);
         Assert.Equal(['J'], rL.KeysToReplayDown);
@@ -91,9 +91,9 @@ public sealed class KeyboardChordTests
     public void Simultaneous_WindowExpires_FlushReturnsBufferedKey()
     {
         var engine = new KeyboardChordEngine();
-        var rules = new[] { MakeSimRule("JK", ['J', 'K']) };
+        var rules = new[] { MakeSimRule("CtrlJK", ['J', 'K'], ChordModifiers.Ctrl) };
 
-        engine.ProcessKeyEvent('J', true, ChordModifiers.None, 100, rules, "notepad", null, defaultSimWindowMs: 50);
+        engine.ProcessKeyEvent('J', true, ChordModifiers.Ctrl, 100, rules, "notepad", null, defaultSimWindowMs: 50);
         Assert.Empty(engine.FlushExpiredSimultaneous(140));
         Assert.Equal(['J'], engine.FlushExpiredSimultaneous(160));
     }
@@ -102,13 +102,29 @@ public sealed class KeyboardChordTests
     public void UnrelatedKey_PassesThroughWithZeroDelay()
     {
         var engine = new KeyboardChordEngine();
-        var rules = new[] { MakeSimRule("JK", ['J', 'K']) };
+        var rules = new[] { MakeSimRule("CtrlJK", ['J', 'K'], ChordModifiers.Ctrl) };
 
         var r = engine.ProcessKeyEvent('A', true, ChordModifiers.None, 100, rules, "notepad", null);
         Assert.False(r.SuppressCurrentEvent);
         Assert.Empty(r.KeysToReplayDown);
         Assert.Null(r.MatchedRule);
         Assert.False(engine.HasPendingSimultaneous);
+    }
+
+    [Fact]
+    public void ModifierlessFirstStep_IsIgnoredSoNormalTypingWorks()
+    {
+        var engine = new KeyboardChordEngine();
+        var rules = new[]
+        {
+            MakeSeqRule("BareZKL", [(ChordModifiers.None, 'Z'), (ChordModifiers.None, 'K'), (ChordModifiers.None, 'L')]),
+            MakeSimRule("BareJK", ['J', 'K'], ChordModifiers.None)
+        };
+
+        Assert.False(engine.ProcessKeyEvent('Z', true, ChordModifiers.None, 100, rules, "notepad", null).SuppressCurrentEvent);
+        Assert.False(engine.ProcessKeyEvent('K', true, ChordModifiers.None, 120, rules, "notepad", null).SuppressCurrentEvent);
+        Assert.False(engine.ProcessKeyEvent('L', true, ChordModifiers.None, 140, rules, "notepad", null).SuppressCurrentEvent);
+        Assert.False(engine.ProcessKeyEvent('J', true, ChordModifiers.None, 160, rules, "notepad", null).SuppressCurrentEvent);
     }
 
     [Fact]
@@ -152,12 +168,12 @@ public sealed class KeyboardChordTests
         var engine = new KeyboardChordEngine();
         var rules = new[]
         {
-            MakeSimRule("GlobalJK", ['J', 'K'], app: "*"),
-            MakeSimRule("CodeJK", ['J', 'K'], app: "code")
+            MakeSimRule("GlobalJK", ['J', 'K'], ChordModifiers.Ctrl, app: "*"),
+            MakeSimRule("CodeJK", ['J', 'K'], ChordModifiers.Ctrl, app: "code")
         };
 
-        engine.ProcessKeyEvent('J', true, ChordModifiers.None, 100, rules, "code", null);
-        var r2 = engine.ProcessKeyEvent('K', true, ChordModifiers.None, 110, rules, "code", null);
+        engine.ProcessKeyEvent('J', true, ChordModifiers.Ctrl, 100, rules, "code", null);
+        var r2 = engine.ProcessKeyEvent('K', true, ChordModifiers.Ctrl, 110, rules, "code", null);
         Assert.Equal("CodeJK", r2.MatchedRule?.Name);
     }
 

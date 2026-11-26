@@ -277,7 +277,8 @@ public sealed class KeyboardChordEngine
             if (!rule.IsEnabled ||
                 rule.TriggerType != TriggerType.KeyboardChord ||
                 rule.KeyboardChord is null ||
-                rule.KeyboardChord.Steps.Count == 0)
+                rule.KeyboardChord.Steps.Count == 0 ||
+                rule.KeyboardChord.Steps[0].Modifiers == ChordModifiers.None)
             {
                 continue;
             }
