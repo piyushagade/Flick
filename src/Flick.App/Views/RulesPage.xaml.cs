@@ -1,5 +1,6 @@
 using Flick.App.Helpers;
 using Flick.Core.Keyboard;
+using Flick.Core.Knock;
 using Flick.Core.Models;
 using Flick.Core.Recognition;
 using Flick.Core.Touchpad;
@@ -28,6 +29,7 @@ public sealed class RuleRowViewModel
     public required Visibility StrokeVisibility { get; init; }
     public required Visibility TapIconVisibility { get; init; }
     public required Visibility ChordIconVisibility { get; init; }
+    public required Visibility KnockIconVisibility { get; init; }
 }
 
 public sealed partial class RulesPage : Page
@@ -109,10 +111,13 @@ public sealed partial class RulesPage : Page
             }
 
             bool isChord = rule.TriggerType == TriggerType.KeyboardChord;
+            bool isKnock = rule.TriggerType == TriggerType.KnockPattern;
             gestureMap.TryGetValue(rule.GestureId, out var gesture);
             string gestureName = isChord
                 ? ChordKeyHelper.FormatChord(rule.KeyboardChord)
-                : (gesture?.Name ?? "Unknown Gesture");
+                : isKnock
+                    ? KnockPatternMatcher.FormatPattern(rule.KnockPattern)
+                    : (gesture?.Name ?? "Unknown Gesture");
 
             if (!string.IsNullOrEmpty(query) &&
                 !rule.Name.Contains(query, StringComparison.OrdinalIgnoreCase) &&
@@ -125,18 +130,20 @@ public sealed partial class RulesPage : Page
 
             string sourceLabel = isChord
                 ? (rule.KeyboardChord?.Mode == KeyboardChordMode.Sequential ? "Sequential Chord" : "Simultaneous Chord")
-                : rule.InputSource switch
-                {
-                    GestureInputSource.Touchpad when rule.FingerCount > 0 => $"{rule.FingerCount}-Finger Touchpad",
-                    GestureInputSource.Touchpad => "Touchpad",
-                    GestureInputSource.Mouse => "Mouse",
-                    _ => "Any Input"
-                };
+                : isKnock
+                    ? "Acoustic Knock"
+                    : rule.InputSource switch
+                    {
+                        GestureInputSource.Touchpad when rule.FingerCount > 0 => $"{rule.FingerCount}-Finger Touchpad",
+                        GestureInputSource.Touchpad => "Touchpad",
+                        GestureInputSource.Mouse => "Mouse",
+                        _ => "Any Input"
+                    };
             string scopeLabel = rule.IsGlobal ? "Global" : rule.ApplicationFilter;
 
-            bool isTap = !isChord && string.Equals(rule.GestureId, "builtin-tap", StringComparison.Ordinal);
-            string repBadge = !isChord && rule.RequiredRepetitions > 1 ? $" • {rule.RequiredRepetitions}×" : "";
-            string seqBadge = !isChord && rule.FollowUpGestures is { Count: > 0 } ? $" • {1 + rule.FollowUpGestures.Count}-Step" : "";
+            bool isTap = !isChord && !isKnock && string.Equals(rule.GestureId, "builtin-tap", StringComparison.Ordinal);
+            string repBadge = !isChord && !isKnock && rule.RequiredRepetitions > 1 ? $" • {rule.RequiredRepetitions}×" : "";
+            string seqBadge = !isChord && !isKnock && rule.FollowUpGestures is { Count: > 0 } ? $" • {1 + rule.FollowUpGestures.Count}-Step" : "";
             items.Add(new RuleRowViewModel
             {
                 Id = rule.Id,
@@ -144,11 +151,12 @@ public sealed partial class RulesPage : Page
                 ScopeBadge = $"{scopeLabel} • {sourceLabel}{repBadge}{seqBadge}",
                 ActionSummary = $"{gestureName}  →  {rule.ActionType}: {rule.ActionPayload}",
                 IsEnabled = rule.IsEnabled,
-                PreviewStrokes = !isChord && !isTap ? BuildPreviewStrokes(gesture) : [],
+                PreviewStrokes = !isChord && !isKnock && !isTap ? BuildPreviewStrokes(gesture) : [],
                 TapDots = isTap ? BuildPreviewTapDots(rule) : [],
-                StrokeVisibility = !isChord && !isTap ? Visibility.Visible : Visibility.Collapsed,
+                StrokeVisibility = !isChord && !isKnock && !isTap ? Visibility.Visible : Visibility.Collapsed,
                 TapIconVisibility = isTap ? Visibility.Visible : Visibility.Collapsed,
-                ChordIconVisibility = isChord ? Visibility.Visible : Visibility.Collapsed
+                ChordIconVisibility = isChord ? Visibility.Visible : Visibility.Collapsed,
+                KnockIconVisibility = isKnock ? Visibility.Visible : Visibility.Collapsed
             });
         }
 
@@ -280,6 +288,13 @@ public sealed partial class RulesPage : Page
                     Modifiers = s.Modifiers,
                     KeyCodes = [.. s.KeyCodes]
                 }).ToList()
+            },
+            KnockPattern = src.KnockPattern is null ? null : new KnockPatternDefinition
+            {
+                KnockCount = src.KnockPattern.KnockCount,
+                SurfaceProfileId = src.KnockPattern.SurfaceProfileId,
+                SurfaceName = src.KnockPattern.SurfaceName,
+                RhythmRatios = [.. src.KnockPattern.RhythmRatios]
             },
             ApplicationFilter = src.ApplicationFilter,
             WindowTitleFilter = src.WindowTitleFilter,
@@ -1637,9 +1652,16 @@ public sealed partial class RulesPage : Page
         };
         var gestureTriggerItem = new ComboBoxItem { Content = "Mouse / Touchpad Gesture", Tag = TriggerType.Gesture };
         var chordTriggerItem = new ComboBoxItem { Content = "Keyboard Chord", Tag = TriggerType.KeyboardChord };
+        var knockTriggerItem = new ComboBoxItem { Content = "Knock Pattern (Acoustic)", Tag = TriggerType.KnockPattern };
         triggerTypeCombo.Items.Add(gestureTriggerItem);
         triggerTypeCombo.Items.Add(chordTriggerItem);
-        triggerTypeCombo.SelectedItem = selectedTriggerType == TriggerType.KeyboardChord ? chordTriggerItem : gestureTriggerItem;
+        triggerTypeCombo.Items.Add(knockTriggerItem);
+        triggerTypeCombo.SelectedItem = selectedTriggerType switch
+        {
+            TriggerType.KeyboardChord => chordTriggerItem,
+            TriggerType.KnockPattern => knockTriggerItem,
+            _ => gestureTriggerItem
+        };
 
         var gestureTriggerPanel = new StackPanel { Spacing = 8 };
         gestureTriggerPanel.Children.Add(drawPadBorder);
@@ -1853,14 +1875,243 @@ public sealed partial class RulesPage : Page
         chordTriggerPanel.Children.Add(chordStatusText);
         chordTriggerPanel.Children.Add(suppressKeysCheck);
 
+        // Knock Pattern Panel
+        var workingKnock = rule.KnockPattern is not null
+            ? new KnockPatternDefinition
+            {
+                KnockCount = rule.KnockPattern.KnockCount,
+                SurfaceProfileId = rule.KnockPattern.SurfaceProfileId,
+                SurfaceName = rule.KnockPattern.SurfaceName,
+                RhythmRatios = [.. rule.KnockPattern.RhythmRatios]
+            }
+            : new KnockPatternDefinition();
+
+        bool isRecordingKnock = false;
+        bool isCalibratingSurface = false;
+        var recordedKnocks = new List<KnockOnsetEvent>();
+        var calibrationSamples = new List<float[]>();
+
+        var knockSurfaceCombo = new ComboBox
+        {
+            Header = "Target Surface",
+            HorizontalAlignment = HorizontalAlignment.Stretch
+        };
+
+        void RefreshKnockSurfaceCombo(string? selectId = null)
+        {
+            knockSurfaceCombo.Items.Clear();
+            var anyItem = new ComboBoxItem { Content = "Any Surface", Tag = "" };
+            knockSurfaceCombo.Items.Add(anyItem);
+            ComboBoxItem toSelect = anyItem;
+            string targetId = selectId ?? workingKnock.SurfaceProfileId ?? "";
+
+            foreach (var surf in App.Engine.Profile.Settings.KnockSurfaces)
+            {
+                var item = new ComboBoxItem
+                {
+                    Content = $"{surf.Name} ({surf.SampleFeatures.Count} samples)",
+                    Tag = surf.Id
+                };
+                knockSurfaceCombo.Items.Add(item);
+                if (string.Equals(surf.Id, targetId, StringComparison.Ordinal))
+                {
+                    toSelect = item;
+                }
+            }
+            knockSurfaceCombo.SelectedItem = toSelect;
+        }
+        RefreshKnockSurfaceCombo();
+
+        knockSurfaceCombo.SelectionChanged += (_, _) =>
+        {
+            if (knockSurfaceCombo.SelectedItem is ComboBoxItem item)
+            {
+                string id = item.Tag?.ToString() ?? "";
+                workingKnock.SurfaceProfileId = string.IsNullOrEmpty(id) ? null : id;
+                var surf = App.Engine.Profile.Settings.KnockSurfaces.FirstOrDefault(s => s.Id == id);
+                workingKnock.SurfaceName = surf?.Name ?? "Any Surface";
+            }
+        };
+
+        var knockCountBox = new NumberBox
+        {
+            Header = "Knock Count",
+            Minimum = 1,
+            Maximum = 6,
+            Value = workingKnock.KnockCount,
+            SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Compact,
+            HorizontalAlignment = HorizontalAlignment.Stretch
+        };
+        knockCountBox.ValueChanged += (_, args) =>
+        {
+            if (!double.IsNaN(args.NewValue))
+            {
+                workingKnock.KnockCount = Math.Clamp((int)args.NewValue, 1, 6);
+            }
+        };
+
+        var useRhythmCheck = new CheckBox
+        {
+            Content = "Match recorded rhythm cadence (3+ knocks)",
+            IsChecked = workingKnock.RhythmRatios.Count > 0
+        };
+
+        var knockStatusText = new TextBlock
+        {
+            Text = "Calibrate surfaces (Touchpad, Lid, Desk) or record a knock pattern.",
+            Style = (Style)Application.Current.Resources["CaptionTextBlockStyle"],
+            Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"],
+            TextWrapping = TextWrapping.Wrap
+        };
+
+        var recordKnockBtn = new Button
+        {
+            Content = "Record Pattern",
+            Style = (Style)Application.Current.Resources["AccentButtonStyle"],
+            HorizontalAlignment = HorizontalAlignment.Stretch
+        };
+
+        var calSurfaceNameCombo = new ComboBox
+        {
+            Header = "Calibrate Surface",
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            IsEditable = true
+        };
+        calSurfaceNameCombo.Items.Add("Touchpad");
+        calSurfaceNameCombo.Items.Add("Laptop Lid");
+        calSurfaceNameCombo.Items.Add("Desk");
+        calSurfaceNameCombo.SelectedIndex = 0;
+
+        var calibrateSurfaceBtn = new Button
+        {
+            Content = "Calibrate (5×)",
+            VerticalAlignment = VerticalAlignment.Bottom
+        };
+
+        void StopKnockRecording()
+        {
+            if (!isRecordingKnock && !isCalibratingSurface) return;
+            isRecordingKnock = false;
+            isCalibratingSurface = false;
+            App.Engine.EndKnockRecording();
+            recordKnockBtn.Content = "Record Pattern";
+            calibrateSurfaceBtn.Content = "Calibrate (5×)";
+        }
+
+        recordKnockBtn.Click += (_, _) =>
+        {
+            if (isRecordingKnock)
+            {
+                StopKnockRecording();
+                if (recordedKnocks.Count > 0)
+                {
+                    workingKnock.KnockCount = Math.Clamp(recordedKnocks.Count, 1, 6);
+                    knockCountBox.Value = workingKnock.KnockCount;
+                    workingKnock.RhythmRatios = KnockPatternMatcher.ComputeRhythmRatios(recordedKnocks);
+                    useRhythmCheck.IsChecked = workingKnock.RhythmRatios.Count > 0;
+                    knockStatusText.Text = $"Recorded {workingKnock.KnockCount}× knock" +
+                        (workingKnock.RhythmRatios.Count > 0 ? $" (cadence {string.Join(":", workingKnock.RhythmRatios)})" : "") + ".";
+                }
+                return;
+            }
+
+            StopKnockRecording();
+            isRecordingKnock = true;
+            recordedKnocks.Clear();
+            recordKnockBtn.Content = "Done Recording";
+            knockStatusText.Text = "● Listening — knock your pattern now, then click Done Recording.";
+
+            App.Engine.BeginKnockRecording(ev =>
+            {
+                recordedKnocks.Add(ev);
+                var surfRes = KnockSurfaceClassifier.Classify(ev.Features, App.Engine.Profile.Settings.KnockSurfaces);
+                DispatcherQueue.TryEnqueue(() =>
+                {
+                    string surfInfo = surfRes.Surface is not null
+                        ? $" • {surfRes.Surface.Name} ({surfRes.Confidence:P0})"
+                        : "";
+                    knockStatusText.Text = $"● Captured {recordedKnocks.Count} knock(s){surfInfo}";
+                });
+            });
+        };
+
+        calibrateSurfaceBtn.Click += (_, _) =>
+        {
+            if (isCalibratingSurface)
+            {
+                StopKnockRecording();
+                knockStatusText.Text = "Surface calibration cancelled.";
+                return;
+            }
+
+            string surfName = string.IsNullOrWhiteSpace(calSurfaceNameCombo.Text)
+                ? "Custom Surface"
+                : calSurfaceNameCombo.Text.Trim();
+
+            StopKnockRecording();
+            isCalibratingSurface = true;
+            calibrationSamples.Clear();
+            calibrateSurfaceBtn.Content = "Cancel";
+            knockStatusText.Text = $"● Knock 5 times on \"{surfName}\" (0/5)...";
+
+            App.Engine.BeginKnockRecording(ev =>
+            {
+                calibrationSamples.Add(ev.Features);
+                int count = calibrationSamples.Count;
+                DispatcherQueue.TryEnqueue(() =>
+                {
+                    if (count < 5)
+                    {
+                        knockStatusText.Text = $"● Knock 5 times on \"{surfName}\" ({count}/5)...";
+                        return;
+                    }
+
+                    StopKnockRecording();
+                    var surfaces = App.Engine.Profile.Settings.KnockSurfaces;
+                    var existing = surfaces.FirstOrDefault(s => string.Equals(s.Name, surfName, StringComparison.OrdinalIgnoreCase));
+                    if (existing is null)
+                    {
+                        existing = new KnockSurfaceProfile { Name = surfName };
+                        surfaces.Add(existing);
+                    }
+                    existing.SampleFeatures = [.. calibrationSamples];
+                    App.Engine.SaveProfile();
+                    workingKnock.SurfaceProfileId = existing.Id;
+                    workingKnock.SurfaceName = existing.Name;
+                    RefreshKnockSurfaceCombo(existing.Id);
+                    knockStatusText.Text = $"Calibrated \"{surfName}\" with 5 samples!";
+                });
+            });
+        };
+
+        var calRow = new Grid { ColumnSpacing = 8 };
+        calRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        calRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        Grid.SetColumn(calSurfaceNameCombo, 0);
+        Grid.SetColumn(calibrateSurfaceBtn, 1);
+        calRow.Children.Add(calSurfaceNameCombo);
+        calRow.Children.Add(calibrateSurfaceBtn);
+
+        var knockTriggerPanel = new StackPanel { Spacing = 10 };
+        knockTriggerPanel.Children.Add(knockSurfaceCombo);
+        knockTriggerPanel.Children.Add(knockCountBox);
+        knockTriggerPanel.Children.Add(recordKnockBtn);
+        knockTriggerPanel.Children.Add(useRhythmCheck);
+        knockTriggerPanel.Children.Add(calRow);
+        knockTriggerPanel.Children.Add(knockStatusText);
+
         void UpdateTriggerTypeVisibility()
         {
-            bool isChordMode = selectedTriggerType == TriggerType.KeyboardChord;
-            gestureTriggerPanel.Visibility = isChordMode ? Visibility.Collapsed : Visibility.Visible;
-            chordTriggerPanel.Visibility = isChordMode ? Visibility.Visible : Visibility.Collapsed;
-            if (!isChordMode)
+            gestureTriggerPanel.Visibility = selectedTriggerType == TriggerType.Gesture ? Visibility.Visible : Visibility.Collapsed;
+            chordTriggerPanel.Visibility = selectedTriggerType == TriggerType.KeyboardChord ? Visibility.Visible : Visibility.Collapsed;
+            knockTriggerPanel.Visibility = selectedTriggerType == TriggerType.KnockPattern ? Visibility.Visible : Visibility.Collapsed;
+            if (selectedTriggerType != TriggerType.KeyboardChord)
             {
                 StopChordRecording();
+            }
+            if (selectedTriggerType != TriggerType.KnockPattern)
+            {
+                StopKnockRecording();
             }
         }
 
@@ -1878,6 +2129,7 @@ public sealed partial class RulesPage : Page
         step1Panel.Children.Add(triggerTypeCombo);
         step1Panel.Children.Add(gestureTriggerPanel);
         step1Panel.Children.Add(chordTriggerPanel);
+        step1Panel.Children.Add(knockTriggerPanel);
 
         // Step 2: Action
         var step2Panel = new StackPanel { Spacing = 12, HorizontalAlignment = HorizontalAlignment.Stretch, Visibility = Visibility.Collapsed };
@@ -2149,11 +2401,24 @@ public sealed partial class RulesPage : Page
             {
                 workingChord.SuppressKeys = suppressKeysCheck.IsChecked == true;
                 rule.KeyboardChord = workingChord;
+                rule.KnockPattern = null;
                 rule.FollowUpGestures = null;
+            }
+            else if (selectedTriggerType == TriggerType.KnockPattern)
+            {
+                if (useRhythmCheck.IsChecked != true)
+                {
+                    workingKnock.RhythmRatios.Clear();
+                }
+                rule.KnockPattern = workingKnock;
+                rule.KeyboardChord = null;
+                rule.FollowUpGestures = null;
+                App.Engine.Profile.Settings.EnableKnockDetection = true;
             }
             else
             {
                 rule.KeyboardChord = null;
+                rule.KnockPattern = null;
                 if (!string.IsNullOrEmpty(recordedBuiltInId))
                 {
                     rule.GestureId = recordedBuiltInId;
@@ -2211,6 +2476,7 @@ public sealed partial class RulesPage : Page
         finally
         {
             StopChordRecording();
+            StopKnockRecording();
             App.Engine.EndRecording();
         }
     }

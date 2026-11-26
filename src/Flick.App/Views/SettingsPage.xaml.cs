@@ -38,6 +38,10 @@ public sealed partial class SettingsPage : Page
         TouchpadSwipeSlider.Value = s.TouchpadMinSwipeDistance * 100.0;
         TouchpadSwipeLabel.Text = $"{s.TouchpadMinSwipeDistance:P0}";
 
+        KnockToggle.IsOn = s.EnableKnockDetection;
+        KnockSensitivitySlider.Value = s.KnockSensitivity * 100.0;
+        KnockSensitivityLabel.Text = $"{s.KnockSensitivity:P0}";
+
         ShowTrailToggle.IsOn = s.ShowTrailOverlay;
         ShowHudPillToggle.IsOn = s.ShowActionHudPill;
         SelectComboByTag(TrailColorCombo, s.TrailColorHex);
@@ -87,6 +91,7 @@ public sealed partial class SettingsPage : Page
         s.MinimizeToTray = MinimizeTrayToggle.IsOn;
         s.AutoPauseOnFullscreen = FullscreenPauseToggle.IsOn;
         s.EnableTouchpadGestures = TouchpadToggle.IsOn;
+        s.EnableKnockDetection = KnockToggle.IsOn;
         s.ShowTrailOverlay = ShowTrailToggle.IsOn;
         s.ShowActionHudPill = ShowHudPillToggle.IsOn;
         s.ShowRippleEffect = ShowRippleToggle.IsOn;
@@ -177,6 +182,7 @@ public sealed partial class SettingsPage : Page
         s.MinimumStrokeLength = MinLengthSlider.Value;
         s.RecognitionThreshold = ThresholdSlider.Value / 100.0;
         s.TouchpadMinSwipeDistance = TouchpadSwipeSlider.Value / 100.0;
+        s.KnockSensitivity = KnockSensitivitySlider.Value / 100.0;
         s.TrailThickness = ThicknessSlider.Value;
         s.RippleRadius = RippleRadiusSlider.Value;
         s.RippleThickness = RippleThicknessSlider.Value;
@@ -185,6 +191,7 @@ public sealed partial class SettingsPage : Page
         MinLengthLabel.Text = $"{s.MinimumStrokeLength:0} px";
         ThresholdLabel.Text = $"{s.RecognitionThreshold:P0}";
         TouchpadSwipeLabel.Text = $"{s.TouchpadMinSwipeDistance:P0}";
+        KnockSensitivityLabel.Text = $"{s.KnockSensitivity:P0}";
         ThicknessLabel.Text = $"{s.TrailThickness:0.0} px";
         RippleRadiusLabel.Text = $"{s.RippleRadius:0} px";
         RippleThicknessLabel.Text = $"{s.RippleThickness:0} px";

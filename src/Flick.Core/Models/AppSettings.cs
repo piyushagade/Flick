@@ -9,6 +9,10 @@ public sealed class AppSettings
     public bool EnableKeyboardChords { get; set; } = true;
     public int ChordSimultaneousWindowMs { get; set; } = 50;
     public int ChordSequenceTimeoutMs { get; set; } = 1000;
+    public bool EnableKnockDetection { get; set; } = false;
+    public double KnockSensitivity { get; set; } = 0.65;
+    public int KnockPatternTimeoutMs { get; set; } = 480;
+    public List<KnockSurfaceProfile> KnockSurfaces { get; set; } = [];
     public bool EnableTouchpadGestures { get; set; } = true;
     public double TouchpadMinSwipeDistance { get; set; } = 0.08;
     public TriggerButton TriggerButton { get; set; } = TriggerButton.Right;

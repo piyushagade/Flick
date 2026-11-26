@@ -137,6 +137,12 @@
                                             Visibility="{Binding ChordIconVisibility}"
                                             HorizontalAlignment="Center"
                                             VerticalAlignment="Center" />
+                                        <FontIcon
+                                            Glyph="&#xE720;"
+                                            FontSize="20"
+                                            Visibility="{Binding KnockIconVisibility}"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center" />
                                     </Grid>
                                 </Border>
 

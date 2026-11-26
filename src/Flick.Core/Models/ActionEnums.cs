@@ -6,7 +6,8 @@ namespace Flick.Core.Models;
 public enum TriggerType
 {
     Gesture = 0,
-    KeyboardChord = 1
+    KeyboardChord = 1,
+    KnockPattern = 2
 }
 
 /// <summary>

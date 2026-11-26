@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using Flick.Core.Keyboard;
+using Flick.Core.Knock;
 using Flick.Core.Models;
 using Flick.Core.Recognition;
 using Flick.Core.Rules;
@@ -33,6 +34,7 @@ public sealed class GestureEngineService : IDisposable
     private readonly MouseGestureHook _hook = new();
     private readonly PrecisionTouchpadHook _touchpadHook = new();
     private readonly KeyboardChordHook _keyboardHook = new();
+    private readonly KnockAudioService _knockAudio = new();
     private readonly GestureTrailOverlay _overlay = new();
     private readonly HotCornerService _hotCorners;
     private DispatcherQueue? _uiDispatcher;
@@ -94,6 +96,11 @@ public sealed class GestureEngineService : IDisposable
         _keyboardHook.ShouldIgnoreCurrentWindow = ShouldIgnoreCurrent;
         _keyboardHook.GetRules = () => Profile.Rules;
         _keyboardHook.ChordMatched += OnChordMatched;
+
+        _knockAudio.ShouldIgnoreCurrentWindow = ShouldIgnoreCurrent;
+        _knockAudio.GetRules = () => Profile.Rules;
+        _knockAudio.GetSurfaces = () => Profile.Settings.KnockSurfaces;
+        _knockAudio.KnockPatternMatched += OnKnockPatternMatched;
     }
 
     public void Start(DispatcherQueue uiDispatcher)
@@ -132,6 +139,20 @@ public sealed class GestureEngineService : IDisposable
         ApplySettingsToRuntime();
     }
 
+    public void BeginKnockRecording(Action<KnockOnsetEvent> onKnock)
+    {
+        _isRecording = true;
+        _knockAudio.RecordKnockCallback = onKnock;
+        _knockAudio.Configure(true, Profile.Settings.KnockSensitivity, Profile.Settings.KnockPatternTimeoutMs);
+    }
+
+    public void EndKnockRecording()
+    {
+        _knockAudio.RecordKnockCallback = null;
+        _isRecording = false;
+        ApplySettingsToRuntime();
+    }
+
     public void EndRecording()
     {
         _isRecording = false;
@@ -151,6 +172,10 @@ public sealed class GestureEngineService : IDisposable
         _keyboardHook.IsEnabled = Profile.Settings.IsEnabled && !_isRecording && Profile.Settings.EnableKeyboardChords;
         _keyboardHook.SimultaneousWindowMs = Profile.Settings.ChordSimultaneousWindowMs;
         _keyboardHook.SequenceTimeoutMs = Profile.Settings.ChordSequenceTimeoutMs;
+        _knockAudio.Configure(
+            _knockAudio.RecordKnockCallback is not null || (Profile.Settings.IsEnabled && !_isRecording && Profile.Settings.EnableKnockDetection),
+            Profile.Settings.KnockSensitivity,
+            Profile.Settings.KnockPatternTimeoutMs);
         _overlay.Configure(
             Profile.Settings.TrailColorHex,
             Profile.Settings.TrailThickness,
@@ -236,6 +261,24 @@ public sealed class GestureEngineService : IDisposable
         }
 
         return ranked.Count > 0 ? ranked[0].Gesture!.Name : null;
+    }
+
+    private void OnKnockPatternMatched(KnockSequenceMatch match, ForegroundAppInfo foreground)
+    {
+        bool executed = TryExecuteRule(match.Rule, foreground.WindowHandle);
+        if (executed && Profile.Settings.ShowRippleEffect && NativeMethods.GetCursorPos(out var pt))
+        {
+            ConfigureOverlayForCurrentApp(foreground.ProcessName);
+            _overlay.TriggerRipple(new GesturePoint(pt.X, pt.Y));
+        }
+
+        RecordActivity(new GestureActivityItem(
+            DateTimeOffset.Now,
+            $"Knock: {match.KnockCount}× ({match.SurfaceName})",
+            match.Rule.Name,
+            string.IsNullOrEmpty(foreground.ProcessName) ? "Desktop" : foreground.ProcessName,
+            match.Confidence,
+            executed));
     }
 
     private void OnChordMatched(GestureRule rule, ForegroundAppInfo foreground)
@@ -431,6 +474,7 @@ public sealed class GestureEngineService : IDisposable
         IReadOnlyList<GesturePoint> centroidPoints,
         int fingerCount)
     {
+        _knockAudio.NotifyTouchpadActivity();
         if (_isRecording)
         {
             var copy = fingerPaths.Select(p => (IReadOnlyList<GesturePoint>)p.ToArray()).ToArray();
@@ -642,6 +686,7 @@ public sealed class GestureEngineService : IDisposable
         _hook.Dispose();
         _touchpadHook.Dispose();
         _keyboardHook.Dispose();
+        _knockAudio.Dispose();
         _overlay.Dispose();
     }
 }

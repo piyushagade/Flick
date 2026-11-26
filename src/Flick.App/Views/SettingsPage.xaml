@@ -127,6 +127,36 @@
 
                         <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
 
+                        <Grid Padding="16,12" ColumnSpacing="14">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <FontIcon Grid.Column="0" Glyph="&#xE720;" FontSize="18" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                <TextBlock Text="Acoustic Knock Pattern Detection" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                                <TextBlock Text="Listen via microphone for knock patterns on touchpad, laptop lid, or desk" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            </StackPanel>
+                            <ToggleSwitch x:Name="KnockToggle" Grid.Column="2" OnContent="" OffContent="" MinWidth="0" Toggled="SettingChanged" />
+                        </Grid>
+
+                        <StackPanel Padding="16,0,16,12" Spacing="6">
+                            <Grid ColumnSpacing="14">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <FontIcon Grid.Column="0" Glyph="&#xE767;" FontSize="18" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                <TextBlock Grid.Column="1" Text="Knock Detection Sensitivity" Style="{StaticResource BodyStrongTextBlockStyle}" VerticalAlignment="Center" />
+                                <TextBlock x:Name="KnockSensitivityLabel" Grid.Column="2" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
+                            </Grid>
+                            <Slider x:Name="KnockSensitivitySlider" Margin="32,0,0,0" Minimum="10" Maximum="100" StepFrequency="5" ValueChanged="SliderChanged" />
+                        </StackPanel>
+
+                        <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
+
                         <StackPanel Padding="16,12" Spacing="6">
                             <Grid ColumnSpacing="14">
                                 <Grid.ColumnDefinitions>
