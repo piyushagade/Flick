@@ -1,4 +1,4 @@
-name: Release Windows Portable
+name: Release Windows Installer
 
 on:
   push:
@@ -181,6 +181,32 @@ jobs:
             -o publish/app `
             --nologo
 
+      - name: Build Inno Setup Installer
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) {
+            choco install innosetup -y --no-progress
+          }
+          if (-not (Test-Path $iscc)) {
+            throw "Inno Setup compiler (ISCC.exe) not found."
+          }
+
+          New-Item -ItemType Directory -Force -Path release | Out-Null
+          $workspace = (Get-Location).Path
+
+          & $iscc `
+            "/DMyAppVersion=${{ steps.version.outputs.full_version }}" `
+            "/DMyAppNumericVersion=${{ steps.version.outputs.numeric_version }}" `
+            "/DSourceDir=$workspace\publish\app" `
+            "/DOutputDir=$workspace\release" `
+            "installer\Flick.iss"
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "ISCC.exe failed with exit code $LASTEXITCODE"
+          }
+
       - name: Create Portable ZIP & SHA256 Checksums
         shell: pwsh
         run: |
@@ -315,6 +341,7 @@ jobs:
           $isPrerelease = "${{ steps.version.outputs.is_prerelease }}" -eq "true"
 
           $assets = @(
+            "release\Flick-Setup-$ver-win-x64.exe",
             "release\Flick-Portable-$ver-win-x64.zip",
             "release\SHA256SUMS.txt"
           )
