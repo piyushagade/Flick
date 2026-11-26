@@ -1,6 +1,6 @@
 # Flick
 
-**Flick for Windows 11** (`v1.2.0`) — Trigger custom actions and macros with mouse strokes, multi-finger touchpad gestures, keyboard chords, and acoustic knock patterns.
+**Flick for Windows 11** (`v1.3.0`) — Trigger custom actions and macros with mouse strokes, multi-finger touchpad gestures, keyboard chords, and acoustic knock patterns.
 
 Built by [Piyush Agade](https://app.piyushagade.xyz/flick) using .NET 8, WinUI 3, Win32 hooks, and Audio DSP.
 

@@ -18,9 +18,18 @@ public sealed partial class WhatsNewPage : Page
         ReleasesList.ItemsSource = new ReleaseNoteItem[]
         {
             new(
+                "v1.3.0",
+                "Sneak Window Portal & Modifier-Only Sequences",
+                Visibility.Visible,
+                [
+                    "Added Sneak: a feathered, cursor-following circular portal to peek through the active window at windows underneath without Alt-Tabbing.",
+                    "Supports both Single Window Lock (cycle with Middle-Click, Tab, or Left/Right Arrows) and All Behind Windows composite layout, plus live scroll-wheel resizing.",
+                    "Added modifier-only sequential keyboard chords (such as Ctrl → Alt → Alt) with smooth async background capture and dirty-rect rendering."
+                ]),
+            new(
                 "v1.2.0",
                 "Acoustic Knock Detection & Surface Calibration",
-                Visibility.Visible,
+                Visibility.Collapsed,
                 [
                     "Added acoustic knock pattern detection using real-time FFT spectral bands, temporal decay ratios, and adaptive noise-floor gating.",
                     "Added Knock Surface Calibration (5× sample training and live detection tester) in Settings to distinguish Touchpad, Laptop Lid, and Desk knocks.",

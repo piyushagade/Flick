@@ -1,0 +1,27 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    name: Build & Test (win-x64)
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Build Flick.App (Release x64)
+        run: dotnet build src/Flick.App/Flick.App.csproj -c Release -p:Platform=x64 --nologo
+
+      - name: Run unit tests
+        run: dotnet test tests/Flick.Core.Tests/Flick.Core.Tests.csproj -c Release --nologo
