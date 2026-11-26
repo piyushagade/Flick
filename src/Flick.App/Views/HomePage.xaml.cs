@@ -10,10 +10,10 @@ public sealed partial class HomePage : Page
 {
     private bool _suppressToggle;
 
-    private static readonly SolidColorBrush EmeraldBrush = new(Color.FromArgb(255, 16, 185, 129));
-    private static readonly SolidColorBrush VioletBrush = new(Color.FromArgb(255, 139, 92, 246));
-    private static readonly SolidColorBrush AmberBrush = new(Color.FromArgb(255, 245, 158, 11));
-    private static readonly SolidColorBrush MutedBadgeBrush = new(Color.FromArgb(255, 82, 82, 91));
+    private static readonly SolidColorBrush ActiveTintBrush = new(Color.FromArgb(36, 56, 189, 248));
+    private static readonly SolidColorBrush ActiveIconBrush = new(Color.FromArgb(255, 96, 205, 255));
+    private static readonly SolidColorBrush MutedBadgeBrush = new(Color.FromArgb(28, 255, 255, 255));
+    private static readonly SolidColorBrush MutedIconBrush = new(Color.FromArgb(140, 255, 255, 255));
 
     public HomePage()
     {
@@ -67,9 +67,16 @@ public sealed partial class HomePage : Page
         ChordQuickToggle.IsEnabled = active;
         KnockQuickToggle.IsEnabled = active;
 
-        TouchpadBadge.Background = (active && s.EnableTouchpadGestures) ? EmeraldBrush : MutedBadgeBrush;
-        ChordBadge.Background = (active && s.EnableKeyboardChords) ? VioletBrush : MutedBadgeBrush;
-        KnockBadge.Background = (active && s.EnableKnockDetection) ? AmberBrush : MutedBadgeBrush;
+        bool tpOn = active && s.EnableTouchpadGestures;
+        bool chordOn = active && s.EnableKeyboardChords;
+        bool knockOn = active && s.EnableKnockDetection;
+
+        TouchpadBadge.Background = tpOn ? ActiveTintBrush : MutedBadgeBrush;
+        TouchpadIcon.Foreground = tpOn ? ActiveIconBrush : MutedIconBrush;
+        ChordBadge.Background = chordOn ? ActiveTintBrush : MutedBadgeBrush;
+        ChordIcon.Foreground = chordOn ? ActiveIconBrush : MutedIconBrush;
+        KnockBadge.Background = knockOn ? ActiveTintBrush : MutedBadgeBrush;
+        KnockIcon.Foreground = knockOn ? ActiveIconBrush : MutedIconBrush;
     }
 
     private void EngineToggle_Toggled(object sender, RoutedEventArgs e)

@@ -38,9 +38,9 @@
                     Width="44"
                     Height="44"
                     CornerRadius="10"
-                    Background="{ThemeResource AccentFillColorDefaultBrush}"
+                    Background="{ThemeResource SubtleFillColorSecondaryBrush}"
                     VerticalAlignment="Center">
-                    <FontIcon Glyph="&#xE8B0;" FontSize="20" Foreground="White" />
+                    <Image Source="ms-appx:///Assets/flick.png" Width="30" Height="30" />
                 </Border>
 
                 <StackPanel Grid.Column="1" Spacing="3" VerticalAlignment="Center">
@@ -84,8 +84,8 @@
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <Border x:Name="TouchpadBadge" Grid.Column="0" Width="38" Height="38" CornerRadius="9" Background="#10B981">
-                        <FontIcon Glyph="&#xE815;" FontSize="17" Foreground="White" />
+                    <Border x:Name="TouchpadBadge" Grid.Column="0" Width="38" Height="38" CornerRadius="9" Background="{ThemeResource SubtleFillColorSecondaryBrush}">
+                        <FontIcon x:Name="TouchpadIcon" Glyph="&#xE815;" FontSize="17" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
                     </Border>
                     <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
                         <TextBlock Text="Precision Touchpad" Style="{StaticResource BodyStrongTextBlockStyle}" />
@@ -103,8 +103,8 @@
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <Border x:Name="ChordBadge" Grid.Column="0" Width="38" Height="38" CornerRadius="9" Background="#8B5CF6">
-                        <FontIcon Glyph="&#xE765;" FontSize="17" Foreground="White" />
+                    <Border x:Name="ChordBadge" Grid.Column="0" Width="38" Height="38" CornerRadius="9" Background="{ThemeResource SubtleFillColorSecondaryBrush}">
+                        <FontIcon x:Name="ChordIcon" Glyph="&#xE765;" FontSize="17" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
                     </Border>
                     <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
                         <TextBlock Text="Keyboard Chords" Style="{StaticResource BodyStrongTextBlockStyle}" />
@@ -122,8 +122,8 @@
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <Border x:Name="KnockBadge" Grid.Column="0" Width="38" Height="38" CornerRadius="9" Background="#F59E0B">
-                        <FontIcon Glyph="&#xE720;" FontSize="17" Foreground="White" />
+                    <Border x:Name="KnockBadge" Grid.Column="0" Width="38" Height="38" CornerRadius="9" Background="{ThemeResource SubtleFillColorSecondaryBrush}">
+                        <FontIcon x:Name="KnockIcon" Glyph="&#xE720;" FontSize="17" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
                     </Border>
                     <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
                         <TextBlock Text="Acoustic Knock Detection" Style="{StaticResource BodyStrongTextBlockStyle}" />
