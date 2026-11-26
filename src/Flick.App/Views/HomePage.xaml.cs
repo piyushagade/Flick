@@ -48,8 +48,8 @@ public sealed partial class HomePage : Page
         StatusTitleText.Text = s.IsEnabled ? "Flick Engine Active" : "Flick Engine Paused";
         StatusPillText.Text = s.IsEnabled ? "LIVE" : "PAUSED";
         StatusSubtitleText.Text = s.IsEnabled
-            ? $"Mouse ({s.TriggerButton} drag, {s.MinimumStrokeLength:0} px) and enabled trigger engines are listening."
-            : "Toggle the switch to resume global trigger recognition.";
+            ? "Listening for enabled triggers."
+            : "All triggers are paused.";
 
         int tpRules = profile.Rules.Count(r => r.IsEnabled && r.TriggerType == TriggerType.Gesture && r.InputSource == GestureInputSource.Touchpad);
         int chordRules = profile.Rules.Count(r => r.IsEnabled && r.TriggerType == TriggerType.KeyboardChord);
