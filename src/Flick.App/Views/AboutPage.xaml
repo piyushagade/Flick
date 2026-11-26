@@ -29,12 +29,12 @@
 
                 <Border
                     Grid.Column="0"
-                    Width="48"
-                    Height="48"
+                    Width="52"
+                    Height="52"
                     CornerRadius="10"
-                    Background="{ThemeResource AccentFillColorDefaultBrush}"
+                    Background="{ThemeResource SubtleFillColorSecondaryBrush}"
                     VerticalAlignment="Center">
-                    <FontIcon Glyph="&#xE8B0;" FontSize="22" Foreground="White" />
+                    <Image Source="ms-appx:///Assets/flick.png" Width="38" Height="38" />
                 </Border>
 
                 <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center">

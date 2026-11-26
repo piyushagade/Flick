@@ -81,6 +81,15 @@ public sealed unsafe class TrayIconService : IDisposable
 
     private void AddTrayIcon()
     {
+        string icoPath = Path.Combine(AppContext.BaseDirectory, "Assets", "flick.ico");
+        nint hIcon = File.Exists(icoPath)
+            ? NativeMethods.LoadImage(0, icoPath, NativeMethods.IMAGE_ICON, 32, 32, NativeMethods.LR_LOADFROMFILE)
+            : 0;
+        if (hIcon == 0)
+        {
+            hIcon = NativeMethods.LoadIcon(0, 32512); // IDI_APPLICATION
+        }
+
         var nid = new NativeMethods.NOTIFYICONDATA
         {
             cbSize = (uint)Marshal.SizeOf<NativeMethods.NOTIFYICONDATA>(),
@@ -88,10 +97,10 @@ public sealed unsafe class TrayIconService : IDisposable
             uID = TrayIconId,
             uFlags = NativeMethods.NIF_MESSAGE | NativeMethods.NIF_ICON | NativeMethods.NIF_TIP,
             uCallbackMessage = WmTrayCallback,
-            hIcon = NativeMethods.LoadIcon(0, 32512) // IDI_APPLICATION
+            hIcon = hIcon
         };
 
-        string tip = "Flick — Mouse & Touch Gestures";
+        string tip = "Flick — Gesture & Trigger Automation";
         for (int i = 0; i < tip.Length && i < 127; i++)
         {
             nid.szTip[i] = tip[i];

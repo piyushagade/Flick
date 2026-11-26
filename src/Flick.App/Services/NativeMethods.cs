@@ -398,6 +398,12 @@ internal static unsafe partial class NativeMethods
     [DllImport("user32.dll")]
     public static extern nint LoadIcon(nint hInstance, nint lpIconName);
 
+    public const uint IMAGE_ICON = 1;
+    public const uint LR_LOADFROMFILE = 0x00000010;
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    public static extern nint LoadImage(nint hInst, string name, uint type, int cx, int cy, uint fuLoad);
+
     // GDI+ flat API for smooth anti-aliased gesture trails
     [StructLayout(LayoutKind.Sequential)]
     public struct GdiplusStartupInput

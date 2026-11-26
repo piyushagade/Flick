@@ -20,6 +20,12 @@ public sealed partial class MainWindow : Window
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);
 
+        string iconPath = Path.Combine(AppContext.BaseDirectory, "Assets", "flick.ico");
+        if (File.Exists(iconPath))
+        {
+            AppWindow.SetIcon(iconPath);
+        }
+
         AppWindow.Resize(new Windows.Graphics.SizeInt32(1140, 760));
 
         RefreshScopeCounts();
