@@ -95,6 +95,12 @@
                             <TextBlock Text="Dashboard" />
                         </StackPanel>
                     </Button>
+                    <Button x:Name="NavCornersBtn" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Padding="12,9" CornerRadius="8" Background="Transparent" BorderThickness="0" Tag="corners" Click="FooterNav_Click">
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <FontIcon Glyph="&#xE744;" FontSize="15" />
+                            <TextBlock Text="Corners" />
+                        </StackPanel>
+                    </Button>
                     <Button x:Name="NavSettingsBtn" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Padding="12,9" CornerRadius="8" Background="Transparent" BorderThickness="0" Tag="settings" Click="FooterNav_Click">
                         <StackPanel Orientation="Horizontal" Spacing="12">
                             <FontIcon Glyph="&#xE713;" FontSize="15" />

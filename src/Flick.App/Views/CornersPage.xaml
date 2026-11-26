@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="Flick.App.Views.CornersPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <Grid RowSpacing="18" MaxWidth="980" Padding="0,0,16,16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Spacing="2">
+            <TextBlock Text="Corners" Style="{StaticResource TitleTextBlockStyle}" />
+            <TextBlock Text="Trigger window or system actions by moving the cursor to a screen corner." Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+        </StackPanel>
+
+        <!-- Enable Hot-Corners Card -->
+        <Border
+            Grid.Row="1"
+            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+            BorderThickness="1"
+            CornerRadius="10"
+            Padding="20,16">
+            <Grid ColumnSpacing="16">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Border x:Name="CornersIconBadge" Grid.Column="0" Width="40" Height="40" CornerRadius="9" Background="{ThemeResource AccentFillColorDefaultBrush}">
+                    <FontIcon Glyph="&#xE744;" FontSize="18" Foreground="White" />
+                </Border>
+                <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                    <TextBlock Text="Enable Hot-Corner Triggers" Style="{StaticResource SubtitleTextBlockStyle}" />
+                    <TextBlock Text="Activate an action when your cursor rests in any corner of the display" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                </StackPanel>
+                <ToggleSwitch x:Name="HotCornersToggle" Grid.Column="2" OnContent="" OffContent="" MinWidth="0" HorizontalAlignment="Right" Toggled="HotCornersToggle_Toggled" />
+            </Grid>
+        </Border>
+
+        <!-- Corner Bindings Card -->
+        <Border
+            x:Name="CornersConfigCard"
+            Grid.Row="2"
+            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+            BorderThickness="1"
+            CornerRadius="10"
+            Padding="20,18">
+            <Grid ColumnSpacing="16" RowSpacing="16">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <ComboBox x:Name="CornerTopLeftCombo" Grid.Row="0" Grid.Column="0" Header="Top-Left Corner" HorizontalAlignment="Stretch" SelectionChanged="HotCornerCombo_Changed" />
+                <ComboBox x:Name="CornerTopRightCombo" Grid.Row="0" Grid.Column="1" Header="Top-Right Corner" HorizontalAlignment="Stretch" SelectionChanged="HotCornerCombo_Changed" />
+                <ComboBox x:Name="CornerBottomLeftCombo" Grid.Row="1" Grid.Column="0" Header="Bottom-Left Corner" HorizontalAlignment="Stretch" SelectionChanged="HotCornerCombo_Changed" />
+                <ComboBox x:Name="CornerBottomRightCombo" Grid.Row="1" Grid.Column="1" Header="Bottom-Right Corner" HorizontalAlignment="Stretch" SelectionChanged="HotCornerCombo_Changed" />
+            </Grid>
+        </Border>
+    </Grid>
+</Page>

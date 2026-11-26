@@ -63,6 +63,7 @@ public sealed partial class MainWindow : Window
         Type pageType = tag switch
         {
             "rules" => typeof(RulesPage),
+            "corners" => typeof(CornersPage),
             "settings" => typeof(SettingsPage),
             _ => typeof(HomePage)
         };
@@ -78,6 +79,7 @@ public sealed partial class MainWindow : Window
         var transparent = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
 
         NavDashboardBtn.Background = _activePageTag == "home" ? activeBrush : transparent;
+        NavCornersBtn.Background = _activePageTag == "corners" ? activeBrush : transparent;
         NavSettingsBtn.Background = _activePageTag == "settings" ? activeBrush : transparent;
     }
 

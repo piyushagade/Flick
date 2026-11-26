@@ -425,45 +425,6 @@
                 </Border>
             </StackPanel>
 
-            <!-- Hot-Corners -->
-            <StackPanel Spacing="8">
-                <TextBlock Text="Screen Hot-Corners" Style="{StaticResource BodyStrongTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8">
-                    <StackPanel>
-                        <Grid Padding="16,12" ColumnSpacing="14">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <FontIcon Grid.Column="0" Glyph="&#xE744;" FontSize="18" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                <TextBlock Text="Enable Hot-Corner Triggers" Style="{StaticResource BodyStrongTextBlockStyle}" />
-                                <TextBlock Text="Trigger window or system actions by moving the cursor to a screen corner" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                            </StackPanel>
-                            <ToggleSwitch x:Name="HotCornersToggle" Grid.Column="2" OnContent="" OffContent="" MinWidth="0" Toggled="SettingChanged" />
-                        </Grid>
-
-                        <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
-
-                        <Grid Padding="16,12" ColumnSpacing="12" RowSpacing="10">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                            </Grid.RowDefinitions>
-                            <ComboBox x:Name="CornerTopLeftCombo" Grid.Row="0" Grid.Column="0" Header="Top-Left Corner" HorizontalAlignment="Stretch" SelectionChanged="HotCornerCombo_Changed" />
-                            <ComboBox x:Name="CornerTopRightCombo" Grid.Row="0" Grid.Column="1" Header="Top-Right Corner" HorizontalAlignment="Stretch" SelectionChanged="HotCornerCombo_Changed" />
-                            <ComboBox x:Name="CornerBottomLeftCombo" Grid.Row="1" Grid.Column="0" Header="Bottom-Left Corner" HorizontalAlignment="Stretch" SelectionChanged="HotCornerCombo_Changed" />
-                            <ComboBox x:Name="CornerBottomRightCombo" Grid.Row="1" Grid.Column="1" Header="Bottom-Right Corner" HorizontalAlignment="Stretch" SelectionChanged="HotCornerCombo_Changed" />
-                        </Grid>
-                    </StackPanel>
-                </Border>
-            </StackPanel>
-
             <!-- Ignored Applications & Backup -->
             <StackPanel Spacing="8">
                 <TextBlock Text="Exclusions &amp; Backup" Style="{StaticResource BodyStrongTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />

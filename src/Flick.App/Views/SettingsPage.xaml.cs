@@ -56,12 +56,6 @@ public sealed partial class SettingsPage : Page
         ThicknessSlider.Value = s.TrailThickness;
         ThicknessLabel.Text = $"{s.TrailThickness:0.0} px";
 
-        HotCornersToggle.IsOn = s.EnableHotCorners;
-        InitHotCornerCombo(CornerTopLeftCombo, s.HotCornerActions.GetValueOrDefault("TopLeft", ""));
-        InitHotCornerCombo(CornerTopRightCombo, s.HotCornerActions.GetValueOrDefault("TopRight", ""));
-        InitHotCornerCombo(CornerBottomLeftCombo, s.HotCornerActions.GetValueOrDefault("BottomLeft", ""));
-        InitHotCornerCombo(CornerBottomRightCombo, s.HotCornerActions.GetValueOrDefault("BottomRight", ""));
-
         ShowRippleToggle.IsOn = s.ShowRippleEffect;
         RippleRadiusSlider.Value = s.RippleRadius;
         RippleRadiusLabel.Text = $"{s.RippleRadius:0} px";
@@ -211,44 +205,6 @@ public sealed partial class SettingsPage : Page
         s.ShowTrailOverlay = ShowTrailToggle.IsOn;
         s.ShowActionHudPill = ShowHudPillToggle.IsOn;
         s.ShowRippleEffect = ShowRippleToggle.IsOn;
-        s.EnableHotCorners = HotCornersToggle.IsOn;
-        App.Engine.SaveProfile();
-    }
-
-    private static readonly (string Label, string Command)[] CornerOptions =
-    [
-        ("Disabled", ""),
-        ("Task View", "TaskView"),
-        ("Show Desktop", "ShowDesktop"),
-        ("Minimize Window", "Minimize"),
-        ("Maximize Window", "Maximize"),
-        ("Previous Desktop", "DesktopLeft"),
-        ("Next Desktop", "DesktopRight")
-    ];
-
-    private static void InitHotCornerCombo(ComboBox combo, string currentCommand)
-    {
-        combo.Items.Clear();
-        int selectedIdx = 0;
-        for (int i = 0; i < CornerOptions.Length; i++)
-        {
-            combo.Items.Add(new ComboBoxItem { Content = CornerOptions[i].Label, Tag = CornerOptions[i].Command });
-            if (string.Equals(CornerOptions[i].Command, currentCommand, StringComparison.OrdinalIgnoreCase))
-            {
-                selectedIdx = i;
-            }
-        }
-        combo.SelectedIndex = selectedIdx;
-    }
-
-    private void HotCornerCombo_Changed(object sender, SelectionChangedEventArgs e)
-    {
-        if (_loading || !IsLoaded) return;
-        var map = App.Engine.Profile.Settings.HotCornerActions;
-        map["TopLeft"] = (CornerTopLeftCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "";
-        map["TopRight"] = (CornerTopRightCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "";
-        map["BottomLeft"] = (CornerBottomLeftCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "";
-        map["BottomRight"] = (CornerBottomRightCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "";
         App.Engine.SaveProfile();
     }
 
