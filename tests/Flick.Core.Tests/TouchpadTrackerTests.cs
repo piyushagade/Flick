@@ -62,6 +62,21 @@ public sealed class TouchpadTrackerTests
     }
 
     [Fact]
+    public void Tracker_DetectsFourFingerPinchInAndOut()
+    {
+        var tracker = new TouchpadGestureTracker();
+
+        // 4-finger Pinch In with slight downward centroid drift (like a real hand)
+        tracker.ProcessFrame([new(1, 0.25, 0.30), new(2, 0.50, 0.20), new(3, 0.75, 0.30), new(4, 0.30, 0.75)]);
+        tracker.ProcessFrame([new(1, 0.42, 0.48), new(2, 0.50, 0.45), new(3, 0.58, 0.48), new(4, 0.46, 0.56)]);
+        var pinchIn = tracker.ProcessFrame([]);
+
+        Assert.NotNull(pinchIn);
+        Assert.Equal(TouchpadGestureKind.PinchIn, pinchIn.Value.Kind);
+        Assert.Equal(4, pinchIn.Value.FingerCount);
+    }
+
+    [Fact]
     public void Tracker_IgnoresSingleFingerCursorMovement()
     {
         var tracker = new TouchpadGestureTracker();

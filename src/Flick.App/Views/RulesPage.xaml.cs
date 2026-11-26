@@ -2506,7 +2506,7 @@ public sealed partial class RulesPage : Page
                     drawnFingerStrokes.Clear();
                     recordedBuiltInId = tpResult.Kind == TouchpadGestureKind.PinchIn ? "builtin-pinch-in" : "builtin-pinch-out";
                     RenderMultiFingerPaths(tpResult.FingerPaths);
-                    drawStatusText.Text = $"Recorded 2-Finger {(tpResult.Kind == TouchpadGestureKind.PinchIn ? "Pinch In" : "Pinch Out")}!";
+                    drawStatusText.Text = $"Recorded {tpResult.FingerCount}-Finger {(tpResult.Kind == TouchpadGestureKind.PinchIn ? "Pinch In" : "Pinch Out")}!";
                     setPadArmed?.Invoke(false, false);
                     refreshSequenceList?.Invoke();
                     return;

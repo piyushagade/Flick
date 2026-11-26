@@ -67,7 +67,7 @@ public sealed class TouchpadGestureTracker
             _centroidPath.Add(centroid);
             ResetFingerPaths(contacts);
 
-            if (contacts.Count == 2)
+            if (contacts.Count >= 2)
             {
                 _initialPinchSpread = ComputeSpread(contacts, centroid);
                 _lastPinchSpread = _initialPinchSpread;
@@ -83,7 +83,7 @@ public sealed class TouchpadGestureTracker
             _centroidPath.Add(centroid);
             ResetFingerPaths(contacts);
 
-            if (contacts.Count == 2)
+            if (contacts.Count >= 2)
             {
                 _initialPinchSpread = ComputeSpread(contacts, centroid);
                 _lastPinchSpread = _initialPinchSpread;
@@ -125,7 +125,7 @@ public sealed class TouchpadGestureTracker
                 }
             }
 
-            if (contacts.Count == 2)
+            if (contacts.Count >= 2)
             {
                 _lastPinchSpread = ComputeSpread(contacts, centroid);
             }
@@ -148,15 +148,15 @@ public sealed class TouchpadGestureTracker
 
         var fingerPaths = SnapshotFingerPaths();
 
-        if (_peakFingers == 2 && _initialPinchSpread > 0.02)
+        if (_peakFingers >= 2 && _initialPinchSpread > 0.02)
         {
             double delta = _lastPinchSpread - _initialPinchSpread;
-            double minPinchDelta = Math.Max(0.06, MinNormalizedSwipeDistance * 0.8);
-            if (Math.Abs(delta) >= minPinchDelta && pathLength < 0.14)
+            double minPinchDelta = Math.Max(0.05, MinNormalizedSwipeDistance * 0.7);
+            if (Math.Abs(delta) >= minPinchDelta && (pathLength < 0.22 || Math.Abs(delta) >= pathLength * 0.55))
             {
                 return new TouchpadGestureResult(
                     delta < 0 ? TouchpadGestureKind.PinchIn : TouchpadGestureKind.PinchOut,
-                    2,
+                    _peakFingers,
                     [.. _centroidPath],
                     fingerPaths);
             }
