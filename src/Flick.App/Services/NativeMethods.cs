@@ -297,6 +297,14 @@ internal static unsafe partial class NativeMethods
     public static extern nint GetForegroundWindow();
 
     [DllImport("user32.dll")]
+    public static extern nint WindowFromPoint(POINT point);
+
+    public const uint GA_ROOT = 2;
+
+    [DllImport("user32.dll")]
+    public static extern nint GetAncestor(nint hwnd, uint gaFlags);
+
+    [DllImport("user32.dll")]
     public static extern uint GetWindowThreadProcessId(nint hWnd, out uint processId);
 
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]

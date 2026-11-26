@@ -335,7 +335,14 @@ public sealed class GestureEngineService : IDisposable
 
     private void OnStrokeCompleted(IReadOnlyList<GesturePoint> points)
     {
-        var foreground = _foreground.GetForegroundApp();
+        var foreground = (Profile.Settings.WindowTarget != GlobalWindowTargetMode.ActiveWindow && points.Count > 0)
+            ? _foreground.GetWindowAtPoint((int)points[0].X, (int)points[0].Y)
+            : _foreground.GetForegroundApp();
+        if (foreground.WindowHandle == 0)
+        {
+            foreground = _foreground.GetForegroundApp();
+        }
+
         var mods = ForegroundWindowService.GetActiveModifiers();
         var ranked = _recognizer.RecognizeRanked(points, Profile.Gestures, Profile.Settings.RecognitionThreshold);
 
@@ -362,7 +369,8 @@ public sealed class GestureEngineService : IDisposable
             GestureInputSource.Mouse,
             0,
             mods,
-            out string? overriddenGestureId);
+            out string? overriddenGestureId,
+            cursorPoint: points.Count > 0 ? points[0] : null);
 
         if (overriddenGestureId is not null)
         {
@@ -399,9 +407,11 @@ public sealed class GestureEngineService : IDisposable
         GestureInputSource source,
         int fingerCount,
         ModifierKeyFilter mods,
-        out string? matchedGestureId)
+        out string? matchedGestureId,
+        GesturePoint? cursorPoint = null)
     {
         matchedGestureId = null;
+        bool isMouse = source == GestureInputSource.Mouse;
 
         // 1. Check if this gesture advances an in-progress multi-gesture sequence.
         var seqAdvance = _sequenceTracker.TryAdvance(candidateGestureIds, source, fingerCount);
@@ -410,7 +420,7 @@ public sealed class GestureEngineService : IDisposable
             if (adv.CompletedRule is not null)
             {
                 CancelSequenceTimeout();
-                return (TryExecuteRule(adv.CompletedRule, foreground.WindowHandle), adv.CompletedRule.Name, adv.CompletedRule);
+                return (TryExecuteRule(adv.CompletedRule, foreground.WindowHandle, isMouse, cursorPoint), adv.CompletedRule.Name, adv.CompletedRule);
             }
 
             if (adv.PendingRule is not null)
@@ -453,14 +463,45 @@ public sealed class GestureEngineService : IDisposable
             return (false, $"{rule.Name} ({rep.CurrentCount}/{rep.RequiredCount})", rule);
         }
 
-        return (TryExecuteRule(rule, foreground.WindowHandle), rule.Name, rule);
+        return (TryExecuteRule(rule, foreground.WindowHandle, isMouse, cursorPoint), rule.Name, rule);
     }
 
-    private bool TryExecuteRule(GestureRule rule, nint windowHandle)
+    private bool TryExecuteRule(GestureRule rule, nint defaultWindowHandle, bool isMouseGesture = false, GesturePoint? cursorPoint = null)
     {
         try
         {
-            _executor.Execute(rule, windowHandle);
+            nint targetHandle = defaultWindowHandle;
+            bool useCursorWindow = rule.WindowTarget switch
+            {
+                WindowTargetMode.ActiveWindow => false,
+                WindowTargetMode.WindowUnderCursor => true,
+                _ => Profile.Settings.WindowTarget == GlobalWindowTargetMode.WindowUnderCursorAlways ||
+                     (isMouseGesture && Profile.Settings.WindowTarget == GlobalWindowTargetMode.WindowUnderCursorForMouse)
+            };
+
+            if (useCursorWindow)
+            {
+                nint cursorHwnd = 0;
+                if (cursorPoint is { } cp)
+                {
+                    cursorHwnd = _foreground.GetWindowAtPoint((int)cp.X, (int)cp.Y).WindowHandle;
+                }
+                else if (NativeMethods.GetCursorPos(out var pt))
+                {
+                    cursorHwnd = _foreground.GetWindowAtPoint(pt.X, pt.Y).WindowHandle;
+                }
+
+                if (cursorHwnd != 0)
+                {
+                    targetHandle = cursorHwnd;
+                    if (rule.ActionType is ActionType.SendHotkey or ActionType.TextSnippet)
+                    {
+                        NativeMethods.SetForegroundWindow(targetHandle);
+                    }
+                }
+            }
+
+            _executor.Execute(rule, targetHandle);
             return true;
         }
         catch

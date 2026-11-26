@@ -35,6 +35,7 @@ public sealed partial class SettingsPage : Page
         FullscreenPauseToggle.IsOn = s.AutoPauseOnFullscreen;
 
         SelectComboByTag(TriggerButtonCombo, s.TriggerButton.ToString());
+        SelectComboByTag(WindowTargetCombo, s.WindowTarget.ToString());
         MinLengthSlider.Value = s.MinimumStrokeLength;
         MinLengthLabel.Text = $"{s.MinimumStrokeLength:0} px";
 
@@ -330,6 +331,16 @@ public sealed partial class SettingsPage : Page
         if (Enum.TryParse<TriggerButton>(item.Tag?.ToString(), out var btn))
         {
             App.Engine.Profile.Settings.TriggerButton = btn;
+            App.Engine.SaveProfile();
+        }
+    }
+
+    private void WindowTargetCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_loading || WindowTargetCombo.SelectedItem is not ComboBoxItem item) return;
+        if (Enum.TryParse<GlobalWindowTargetMode>(item.Tag?.ToString(), out var mode))
+        {
+            App.Engine.Profile.Settings.WindowTarget = mode;
             App.Engine.SaveProfile();
         }
     }

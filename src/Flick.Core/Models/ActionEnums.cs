@@ -11,6 +11,26 @@ public enum TriggerType
 }
 
 /// <summary>
+/// Global default for which window receives triggered actions.
+/// </summary>
+public enum GlobalWindowTargetMode
+{
+    ActiveWindow = 0,
+    WindowUnderCursorForMouse = 1,
+    WindowUnderCursorAlways = 2
+}
+
+/// <summary>
+/// Per-rule override for which window receives triggered actions.
+/// </summary>
+public enum WindowTargetMode
+{
+    Default = 0,
+    ActiveWindow = 1,
+    WindowUnderCursor = 2
+}
+
+/// <summary>
 /// Supported action types executed when a gesture rule matches.
 /// </summary>
 public enum ActionType

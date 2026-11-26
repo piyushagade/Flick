@@ -28,6 +28,7 @@ public sealed class AppSettings
     public bool MinimizeToTray { get; set; } = true;
     public bool StartWithWindows { get; set; } = false;
     public bool AutoPauseOnFullscreen { get; set; } = true;
+    public GlobalWindowTargetMode WindowTarget { get; set; } = GlobalWindowTargetMode.ActiveWindow;
     public bool ShowActionHudPill { get; set; } = true;
     public bool EnableHotCorners { get; set; } = false;
     public Dictionary<string, string> HotCornerActions { get; set; } = [];

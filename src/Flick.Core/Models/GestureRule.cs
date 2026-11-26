@@ -42,6 +42,8 @@ public sealed class GestureRule
     /// </summary>
     public string? WindowTitleFilter { get; set; }
 
+    public WindowTargetMode WindowTarget { get; set; } = WindowTargetMode.Default;
+
     public ModifierKeyFilter RequiredModifiers { get; set; } = ModifierKeyFilter.None;
 
     /// <summary>

@@ -298,6 +298,7 @@ public sealed partial class RulesPage : Page
             },
             ApplicationFilter = src.ApplicationFilter,
             WindowTitleFilter = src.WindowTitleFilter,
+            WindowTarget = src.WindowTarget,
             RequiredModifiers = src.RequiredModifiers,
             RequiredRepetitions = src.RequiredRepetitions,
             FollowUpGestures = src.FollowUpGestures?.Select(f => new GestureSequenceStep
@@ -2272,9 +2273,28 @@ public sealed partial class RulesPage : Page
         step2Panel.Children.Add(payloadRow);
 
         // Step 3: Conditions & Macro (Optional)
+        var windowTargetCombo = new ComboBox
+        {
+            Header = "Target Window",
+            HorizontalAlignment = HorizontalAlignment.Stretch
+        };
+        var wtDefault = new ComboBoxItem { Content = "Use Global Default", Tag = WindowTargetMode.Default };
+        var wtActive = new ComboBoxItem { Content = "Active (Foreground) Window", Tag = WindowTargetMode.ActiveWindow };
+        var wtCursor = new ComboBoxItem { Content = "Window Under Cursor", Tag = WindowTargetMode.WindowUnderCursor };
+        windowTargetCombo.Items.Add(wtDefault);
+        windowTargetCombo.Items.Add(wtActive);
+        windowTargetCombo.Items.Add(wtCursor);
+        windowTargetCombo.SelectedItem = rule.WindowTarget switch
+        {
+            WindowTargetMode.ActiveWindow => wtActive,
+            WindowTargetMode.WindowUnderCursor => wtCursor,
+            _ => wtDefault
+        };
+
         var conditionsSection = new StackPanel { Spacing = 10 };
         conditionsSection.Children.Add(modRow);
         conditionsSection.Children.Add(titleFilterBox);
+        conditionsSection.Children.Add(windowTargetCombo);
 
         var macroSection = new StackPanel { Spacing = 10 };
         macroSection.Children.Add(chainCategoryCombo);
@@ -2595,6 +2615,9 @@ public sealed partial class RulesPage : Page
 
             rule.ApplicationFilter = string.IsNullOrWhiteSpace(appBox.Text) ? "*" : appBox.Text.Trim();
             rule.WindowTitleFilter = string.IsNullOrWhiteSpace(titleFilterBox.Text) ? null : titleFilterBox.Text.Trim();
+            rule.WindowTarget = (windowTargetCombo.SelectedItem as ComboBoxItem)?.Tag is WindowTargetMode wtm
+                ? wtm
+                : WindowTargetMode.Default;
 
             var mods = ModifierKeyFilter.None;
             if (ctrlCheck.IsChecked == true) mods |= ModifierKeyFilter.Ctrl;

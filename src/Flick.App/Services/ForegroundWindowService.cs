@@ -50,7 +50,23 @@ public sealed class ForegroundWindowService
     }
     public ForegroundAppInfo GetForegroundApp()
     {
-        nint hwnd = NativeMethods.GetForegroundWindow();
+        return GetAppInfoForWindow(NativeMethods.GetForegroundWindow());
+    }
+
+    public ForegroundAppInfo GetWindowAtPoint(int x, int y)
+    {
+        nint hwnd = NativeMethods.WindowFromPoint(new NativeMethods.POINT { X = x, Y = y });
+        if (hwnd == 0)
+        {
+            return new ForegroundAppInfo(0, string.Empty, string.Empty);
+        }
+
+        nint root = NativeMethods.GetAncestor(hwnd, NativeMethods.GA_ROOT);
+        return GetAppInfoForWindow(root != 0 ? root : hwnd);
+    }
+
+    private static ForegroundAppInfo GetAppInfoForWindow(nint hwnd)
+    {
         if (hwnd == 0)
         {
             return new ForegroundAppInfo(0, string.Empty, string.Empty);

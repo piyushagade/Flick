@@ -111,6 +111,26 @@
 
                         <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
 
+                        <Grid Padding="16,12" ColumnSpacing="14">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <FontIcon Grid.Column="0" Glyph="&#xE737;" FontSize="18" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                <TextBlock Text="Window Action Target" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                                <TextBlock Text="Choose whether actions target the active window or the window under the cursor" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            </StackPanel>
+                            <ComboBox x:Name="WindowTargetCombo" Grid.Column="2" Width="210" SelectionChanged="WindowTargetCombo_SelectionChanged">
+                                <ComboBoxItem Content="Active Window" Tag="ActiveWindow" />
+                                <ComboBoxItem Content="Under Cursor (Mouse)" Tag="WindowUnderCursorForMouse" />
+                                <ComboBoxItem Content="Under Cursor (Always)" Tag="WindowUnderCursorAlways" />
+                            </ComboBox>
+                        </Grid>
+
+                        <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
+
                         <StackPanel Padding="16,12" Spacing="6">
                             <Grid ColumnSpacing="14">
                                 <Grid.ColumnDefinitions>
