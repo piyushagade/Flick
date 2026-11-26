@@ -121,6 +121,27 @@ public static class DefaultProfileFactory
                 ActionType = ActionType.MediaControl,
                 ActionPayload = "PlayPause",
                 IsEnabled = true
+            },
+            new()
+            {
+                Id = "rule-chord-sneak",
+                Name = "Sneak (Peek Window Behind)",
+                TriggerType = TriggerType.KeyboardChord,
+                ApplicationFilter = "*",
+                KeyboardChord = new KeyboardChordDefinition
+                {
+                    Mode = KeyboardChordMode.Sequential,
+                    Steps =
+                    [
+                        new ChordStep { Modifiers = ChordModifiers.Ctrl, KeyCodes = [] },
+                        new ChordStep { Modifiers = ChordModifiers.Alt, KeyCodes = [] },
+                        new ChordStep { Modifiers = ChordModifiers.Alt, KeyCodes = [] }
+                    ],
+                    SuppressKeys = false
+                },
+                ActionType = ActionType.WindowManagement,
+                ActionPayload = "Sneak",
+                IsEnabled = true
             }
         };
 
@@ -246,7 +267,12 @@ public static class DefaultProfileFactory
                 Name = "Pinch In",
                 Description = "Two-finger pinch inward on touchpad",
                 IsBuiltIn = true,
-                Points = [new(0, 50), new(40, 50), new(100, 50), new(60, 50)]
+                Points = [new(0, 50), new(40, 50), new(100, 50), new(60, 50)],
+                FingerStrokes =
+                [
+                    [new(0, 50), new(40, 50)],
+                    [new(100, 50), new(60, 50)]
+                ]
             },
             new GestureDefinition
             {
@@ -254,7 +280,12 @@ public static class DefaultProfileFactory
                 Name = "Pinch Out",
                 Description = "Two-finger spread outward on touchpad",
                 IsBuiltIn = true,
-                Points = [new(40, 50), new(0, 50), new(60, 50), new(100, 50)]
+                Points = [new(40, 50), new(0, 50), new(60, 50), new(100, 50)],
+                FingerStrokes =
+                [
+                    [new(40, 50), new(0, 50)],
+                    [new(60, 50), new(100, 50)]
+                ]
             }
         ];
     }

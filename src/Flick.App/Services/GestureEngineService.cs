@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using Flick.App.Services.Sneak;
 using Flick.Core.Keyboard;
 using Flick.Core.Knock;
 using Flick.Core.Models;
@@ -36,6 +37,7 @@ public sealed class GestureEngineService : IDisposable
     private readonly KeyboardChordHook _keyboardHook = new();
     private readonly KnockAudioService _knockAudio = new();
     private readonly GestureTrailOverlay _overlay = new();
+    private readonly SneakOrbOverlay _sneakOverlay = new();
     private readonly HotCornerService _hotCorners;
     private DispatcherQueue? _uiDispatcher;
     private bool _isRecording;
@@ -55,6 +57,8 @@ public sealed class GestureEngineService : IDisposable
     {
         _store = store ?? new ProfileStore();
         Profile = _store.Load();
+
+        _executor.ToggleSneakHandler = showAll => _sneakOverlay.Toggle(showAll);
 
         _hotCorners = new HotCornerService(
             canTrigger: () => Profile.Settings.IsEnabled && !_isRecording && !ShouldIgnoreCurrent(),
@@ -108,6 +112,7 @@ public sealed class GestureEngineService : IDisposable
         _uiDispatcher = uiDispatcher;
         ApplySettingsToRuntime();
         _overlay.Start();
+        _sneakOverlay.Start();
         _hook.Start();
         _touchpadHook.Start();
         _keyboardHook.Start();
@@ -501,6 +506,17 @@ public sealed class GestureEngineService : IDisposable
                 }
             }
 
+            if (rule.TriggerType != TriggerType.KeyboardChord && rule.ExecutionDelayMs > 0)
+            {
+                int delayMs = rule.ExecutionDelayMs;
+                _ = Task.Run(async () =>
+                {
+                    await Task.Delay(delayMs).ConfigureAwait(false);
+                    try { _executor.Execute(rule, targetHandle); } catch { }
+                });
+                return true;
+            }
+
             _executor.Execute(rule, targetHandle);
             return true;
         }
@@ -729,5 +745,6 @@ public sealed class GestureEngineService : IDisposable
         _keyboardHook.Dispose();
         _knockAudio.Dispose();
         _overlay.Dispose();
+        _sneakOverlay.Dispose();
     }
 }

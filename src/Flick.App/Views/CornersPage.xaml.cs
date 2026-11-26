@@ -15,7 +15,8 @@ public sealed partial class CornersPage : Page
         ("Minimize Window", "Minimize"),
         ("Maximize Window", "Maximize"),
         ("Previous Desktop", "DesktopLeft"),
-        ("Next Desktop", "DesktopRight")
+        ("Next Desktop", "DesktopRight"),
+        ("Sneak (Peek Window Behind)", "Sneak")
     ];
 
     public CornersPage()

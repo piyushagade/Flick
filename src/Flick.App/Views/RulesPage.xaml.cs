@@ -165,7 +165,7 @@ public sealed partial class RulesPage : Page
                 IsEnabled = rule.IsEnabled,
                 IsEngineActive = triggerEngineEnabled,
                 RowOpacity = triggerEngineEnabled ? 1.0 : 0.45,
-                PreviewStrokes = !isChord && !isKnock && !isTap ? BuildPreviewStrokes(gesture) : [],
+                PreviewStrokes = !isChord && !isKnock && !isTap ? BuildPreviewStrokes(gesture, rule.FingerCount) : [],
                 TapDots = isTap ? BuildPreviewTapDots(rule) : [],
                 StrokeVisibility = !isChord && !isKnock && !isTap ? Visibility.Visible : Visibility.Collapsed,
                 TapIconVisibility = isTap ? Visibility.Visible : Visibility.Collapsed,
@@ -350,16 +350,23 @@ public sealed partial class RulesPage : Page
         bool AllowCustomPayload,
         string CustomPlaceholder);
 
-    private static IReadOnlyList<PreviewStrokeViewModel> BuildPreviewStrokes(GestureDefinition? gesture)
+    private static IReadOnlyList<PreviewStrokeViewModel> BuildPreviewStrokes(GestureDefinition? gesture, int fingerCount = 0)
     {
         if (gesture is null)
         {
             return [];
         }
 
-        if (gesture.FingerStrokes is { Count: > 1 })
+        IReadOnlyList<List<GesturePoint>>? strokes = gesture.Id switch
         {
-            var multi = GesturePreviewHelper.ToMultiPreviewPoints(gesture.FingerStrokes, 48, 8);
+            "builtin-pinch-in" => GesturePreviewHelper.BuildPinchStrokes(pinchIn: true, fingerCount),
+            "builtin-pinch-out" => GesturePreviewHelper.BuildPinchStrokes(pinchIn: false, fingerCount),
+            _ => gesture.FingerStrokes
+        };
+
+        if (strokes is { Count: > 1 })
+        {
+            var multi = GesturePreviewHelper.ToMultiPreviewPoints(strokes, 48, 8);
             var list = new List<PreviewStrokeViewModel>(multi.Count);
             for (int f = 0; f < multi.Count; f++)
             {
@@ -471,7 +478,8 @@ public sealed partial class RulesPage : Page
                 new("Show Desktop", "ShowDesktop"),
                 new("Task View", "TaskView"),
                 new("Previous Virtual Desktop", "DesktopLeft"),
-                new("Next Virtual Desktop", "DesktopRight")
+                new("Next Virtual Desktop", "DesktopRight"),
+                new("Sneak (Peek Window Behind)", "Sneak")
             ],
             false,
             ""),
@@ -766,12 +774,39 @@ public sealed partial class RulesPage : Page
                 return;
             }
 
-            if (g.FingerStrokes is { Count: > 1 })
+            IReadOnlyList<List<GesturePoint>>? presetStrokes = g.Id switch
             {
-                for (int f = 0; f < g.FingerStrokes.Count; f++)
+                "builtin-pinch-in" => GesturePreviewHelper.BuildPinchStrokes(pinchIn: true, detectedFingers),
+                "builtin-pinch-out" => GesturePreviewHelper.BuildPinchStrokes(pinchIn: false, detectedFingers),
+                _ => g.FingerStrokes
+            };
+
+            if (presetStrokes is { Count: > 1 })
+            {
+                if (g.IsBuiltIn)
+                {
+                    const double builtInPrevSize = 125;
+                    var multi = GesturePreviewHelper.ToMultiPreviewPoints(presetStrokes, builtInPrevSize, 14);
+                    for (int f = 0; f < multi.Count; f++)
+                    {
+                        var poly = CreateFingerPolyline(f);
+                        var ptsList = new List<Point>(multi[f].Count);
+                        foreach (var pt in multi[f])
+                        {
+                            var shifted = new Point(pt.X + (padWidth - builtInPrevSize) / 2.0, pt.Y + (padHeight - builtInPrevSize) / 2.0);
+                            poly.Points.Add(shifted);
+                            ptsList.Add(shifted);
+                        }
+                        drawCanvas.Children.Add(poly);
+                        AddArrowheadToCanvas(ptsList, f);
+                    }
+                    return;
+                }
+
+                for (int f = 0; f < presetStrokes.Count; f++)
                 {
                     var poly = CreateFingerPolyline(f);
-                    var smoothed = StrokeSmoother.Smooth(g.FingerStrokes[f], denoisePasses: 2, chaikinIterations: 2);
+                    var smoothed = StrokeSmoother.Smooth(presetStrokes[f], denoisePasses: 2, chaikinIterations: 2);
                     var ptsList = new List<Point>(smoothed.Length);
                     foreach (var p in smoothed)
                     {
@@ -1116,6 +1151,15 @@ public sealed partial class RulesPage : Page
         payloadRow.Children.Add(payloadBox);
         payloadRow.Children.Add(recordHotkeyBtn);
 
+        var sneakShowAllToggle = new ToggleSwitch
+        {
+            Header = "Sneak Overlay Layout",
+            OnContent = "Show all behind windows as laid out",
+            OffContent = "Single window (cycle with Tab / middle-click)",
+            IsOn = string.Equals(rule.ActionPayload, "SneakAll", StringComparison.OrdinalIgnoreCase),
+            Visibility = Visibility.Collapsed
+        };
+
         void SelectCategory(ActionCategoryInfo cat, string? initialPayload = null)
         {
             selectedCategory = cat;
@@ -1124,8 +1168,11 @@ public sealed partial class RulesPage : Page
             ActionPreset? matchedPreset = null;
             if (!string.IsNullOrEmpty(initialPayload))
             {
+                string lookupPayload = string.Equals(initialPayload, "SneakAll", StringComparison.OrdinalIgnoreCase)
+                    ? "Sneak"
+                    : initialPayload;
                 matchedPreset = cat.Presets.FirstOrDefault(p =>
-                    string.Equals(p.Payload, initialPayload, StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(p.Payload, lookupPayload, StringComparison.OrdinalIgnoreCase) &&
                     (p.OverrideType is null || p.OverrideType == rule.ActionType));
             }
             else if (cat.PrimaryType == ActionType.RunProgram && rule.ActionType == ActionType.RunPowerShell)
@@ -1153,6 +1200,9 @@ public sealed partial class RulesPage : Page
             recordHotkeyBtn.Visibility = selectedCategory.PrimaryType == ActionType.SendHotkey
                 ? Visibility.Visible
                 : Visibility.Collapsed;
+            bool isSneak = selectedCategory.PrimaryType == ActionType.WindowManagement &&
+                           string.Equals(preset.Payload, "Sneak", StringComparison.OrdinalIgnoreCase);
+            sneakShowAllToggle.Visibility = isSneak ? Visibility.Visible : Visibility.Collapsed;
             if (!needsCustom)
             {
                 payloadBox.Text = preset.Payload;
@@ -1255,7 +1305,7 @@ public sealed partial class RulesPage : Page
             }
             else if (g is not null)
             {
-                var strokes = BuildPreviewStrokes(g);
+                var strokes = BuildPreviewStrokes(g, fingerCount);
                 const double scale = 36.0 / 48.0;
                 foreach (var s in strokes)
                 {
@@ -1785,18 +1835,45 @@ public sealed partial class RulesPage : Page
             chordPreviewBorder.BorderBrush = (Brush)Application.Current.Resources["AccentFillColorDefaultBrush"];
             chordPreviewBorder.BorderThickness = new Thickness(2);
             chordStatusText.Text = workingChord.Mode == KeyboardChordMode.Sequential
-                ? "● Recording Sequential — start with Modifier+Key (e.g. Ctrl+Z), then follow-up keys."
+                ? "● Recording Sequential — tap modifier keys (e.g. Ctrl → Alt → Alt) or Modifier+Key steps."
                 : "● Recording Simultaneous — hold Modifier (Ctrl/Alt/Shift/Win) + chord keys together, then release.";
 
             var recordedMods = ChordModifiers.None;
+            bool nonModifierPressedWhileModHeld = false;
             App.Engine.BeginChordRecording((vk, isDown, _) =>
             {
                 var modFlag = ChordKeyHelper.ToModifierFlag(vk);
                 if (modFlag != ChordModifiers.None)
                 {
-                    if (isDown) recordedMods |= modFlag;
-                    else recordedMods &= ~modFlag;
+                    if (isDown)
+                    {
+                        if ((recordedMods & modFlag) == 0)
+                        {
+                            nonModifierPressedWhileModHeld = false;
+                        }
+                        recordedMods |= modFlag;
+                    }
+                    else
+                    {
+                        recordedMods &= ~modFlag;
+                        if (workingChord.Mode == KeyboardChordMode.Sequential &&
+                            !nonModifierPressedWhileModHeld &&
+                            recordedMods == ChordModifiers.None)
+                        {
+                            workingChord.Steps.Add(new ChordStep { Modifiers = modFlag, KeyCodes = [] });
+                            DispatcherQueue.TryEnqueue(() =>
+                            {
+                                RefreshChordPreview();
+                                chordStatusText.Text = $"● Step {workingChord.Steps.Count} recorded — tap next key/modifier or click Done Recording.";
+                            });
+                        }
+                    }
                     return true;
+                }
+
+                if (isDown)
+                {
+                    nonModifierPressedWhileModHeld = true;
                 }
 
                 var mods = recordedMods;
@@ -2287,6 +2364,7 @@ public sealed partial class RulesPage : Page
         step2Panel.Children.Add(nameBox);
         step2Panel.Children.Add(categoryCombo);
         step2Panel.Children.Add(subcategoryCombo);
+        step2Panel.Children.Add(sneakShowAllToggle);
         step2Panel.Children.Add(payloadRow);
 
         // Step 3: Conditions & Macro (Optional)
@@ -2308,10 +2386,23 @@ public sealed partial class RulesPage : Page
             _ => wtDefault
         };
 
+        var executionDelayBox = new NumberBox
+        {
+            Header = "Execution Delay (ms, 0 = instant)",
+            Value = Math.Clamp(rule.ExecutionDelayMs, 0, 5000),
+            Minimum = 0,
+            Maximum = 5000,
+            SmallChange = 50,
+            LargeChange = 250,
+            SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Inline,
+            HorizontalAlignment = HorizontalAlignment.Stretch
+        };
+
         var conditionsSection = new StackPanel { Spacing = 10 };
         conditionsSection.Children.Add(modRow);
         conditionsSection.Children.Add(titleFilterBox);
         conditionsSection.Children.Add(windowTargetCombo);
+        conditionsSection.Children.Add(executionDelayBox);
 
         var macroSection = new StackPanel { Spacing = 10 };
         macroSection.Children.Add(chainCategoryCombo);
@@ -2642,12 +2733,17 @@ public sealed partial class RulesPage : Page
             if (shiftCheck.IsChecked == true) mods |= ModifierKeyFilter.Shift;
             rule.RequiredModifiers = mods;
             rule.RequiredRepetitions = double.IsNaN(repeatBox.Value) ? 1 : Math.Clamp((int)repeatBox.Value, 1, 5);
+            rule.ExecutionDelayMs = double.IsNaN(executionDelayBox.Value) ? 0 : Math.Clamp((int)executionDelayBox.Value, 0, 5000);
 
             rule.Steps = macroSteps.Count > 0 ? [.. macroSteps] : null;
             rule.ActionType = chosenPreset?.OverrideType ?? selectedCategory.PrimaryType;
-            rule.ActionPayload = !string.IsNullOrEmpty(chosenPreset?.Payload)
-                ? chosenPreset.Payload
-                : (payloadBox.Text?.Trim() ?? string.Empty);
+            bool isSneakPreset = rule.ActionType == ActionType.WindowManagement &&
+                                 string.Equals(chosenPreset?.Payload, "Sneak", StringComparison.OrdinalIgnoreCase);
+            rule.ActionPayload = isSneakPreset && sneakShowAllToggle.IsOn
+                ? "SneakAll"
+                : !string.IsNullOrEmpty(chosenPreset?.Payload)
+                    ? chosenPreset.Payload
+                    : (payloadBox.Text?.Trim() ?? string.Empty);
 
             return true;
         }

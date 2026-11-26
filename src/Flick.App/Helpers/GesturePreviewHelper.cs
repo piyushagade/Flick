@@ -108,6 +108,33 @@ public static class GesturePreviewHelper
         return result;
     }
 
+    /// <summary>
+    /// Generates normalized 0..100 multi-finger strokes for a pinch-in or pinch-out gesture.
+    /// </summary>
+    public static List<List<GesturePoint>> BuildPinchStrokes(bool pinchIn, int fingerCount)
+    {
+        int count = Math.Clamp(fingerCount > 0 ? fingerCount : 2, 2, 5);
+        if (count == 2)
+        {
+            return pinchIn
+                ? [[new(0, 50), new(40, 50)], [new(100, 50), new(60, 50)]]
+                : [[new(40, 50), new(0, 50)], [new(60, 50), new(100, 50)]];
+        }
+
+        var strokes = new List<List<GesturePoint>>(count);
+        double startAngle = count == 4 ? -Math.PI * 0.75 : -Math.PI / 2.0;
+        for (int i = 0; i < count; i++)
+        {
+            double angle = startAngle + i * (2.0 * Math.PI / count);
+            double cos = Math.Cos(angle);
+            double sin = Math.Sin(angle);
+            var outer = new GesturePoint(50.0 + 50.0 * cos, 50.0 + 50.0 * sin);
+            var inner = new GesturePoint(50.0 + 14.0 * cos, 50.0 + 14.0 * sin);
+            strokes.Add(pinchIn ? [outer, inner] : [inner, outer]);
+        }
+        return strokes;
+    }
+
     public static PointCollection CreateArrowhead(IList<Point> points, double headLength = 10, double halfAngleDeg = 28)
     {
         var arrow = new PointCollection();

@@ -16,6 +16,8 @@ public sealed class KeyboardChordHook : IDisposable
     private readonly ForegroundWindowService _foreground = new();
     private readonly object _gate = new();
     private readonly Timer _flushTimer;
+    private readonly Timer _seqCommitTimer;
+    private ForegroundAppInfo _pendingSeqForeground;
 
     private Thread? _hookThread;
     private uint _hookThreadId;
@@ -40,6 +42,7 @@ public sealed class KeyboardChordHook : IDisposable
     public KeyboardChordHook()
     {
         _flushTimer = new Timer(OnFlushTimer, null, Timeout.Infinite, Timeout.Infinite);
+        _seqCommitTimer = new Timer(OnSeqCommitTimer, null, Timeout.Infinite, Timeout.Infinite);
     }
 
     public void Start()
@@ -64,6 +67,7 @@ public sealed class KeyboardChordHook : IDisposable
         {
             _engine.Reset();
             _flushTimer.Change(Timeout.Infinite, Timeout.Infinite);
+            _seqCommitTimer.Change(Timeout.Infinite, Timeout.Infinite);
         }
     }
 
@@ -148,6 +152,16 @@ public sealed class KeyboardChordHook : IDisposable
                     {
                         _flushTimer.Change(Timeout.Infinite, Timeout.Infinite);
                     }
+
+                    if (_engine.HasPendingSequenceCommit)
+                    {
+                        _pendingSeqForeground = fg;
+                        _seqCommitTimer.Change(_engine.GetRemainingSequenceCommitMs(nowMs) + 8, Timeout.Infinite);
+                    }
+                    else
+                    {
+                        _seqCommitTimer.Change(Timeout.Infinite, Timeout.Infinite);
+                    }
                 }
 
                 if (result.KeysToReplayDown.Count > 0)
@@ -187,6 +201,22 @@ public sealed class KeyboardChordHook : IDisposable
         if (toReplay.Count > 0)
         {
             ReplayKeysDown(toReplay);
+        }
+    }
+
+    private void OnSeqCommitTimer(object? state)
+    {
+        GestureRule? matchedRule;
+        ForegroundAppInfo fg;
+        lock (_gate)
+        {
+            matchedRule = _engine.FlushExpiredSequenceCommit(Environment.TickCount64);
+            fg = _pendingSeqForeground;
+        }
+
+        if (matchedRule is not null)
+        {
+            _ = Task.Run(() => ChordMatched?.Invoke(matchedRule, fg));
         }
     }
 
@@ -232,6 +262,7 @@ public sealed class KeyboardChordHook : IDisposable
         if (_disposed) return;
         _disposed = true;
         _flushTimer.Dispose();
+        _seqCommitTimer.Dispose();
         if (_hookThreadId != 0)
         {
             NativeMethods.PostThreadMessage(_hookThreadId, NativeMethods.WM_QUIT, 0, 0);

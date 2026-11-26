@@ -69,6 +69,8 @@ public sealed class ActionExecutor
         ["F9"] = 0x78, ["F10"] = 0x79, ["F11"] = 0x7A, ["F12"] = 0x7B
     };
 
+    public Action<bool>? ToggleSneakHandler { get; set; }
+
     public void Execute(GestureRule rule, nint targetWindow)
     {
         if (rule.Steps is { Count: > 0 } steps)
@@ -194,8 +196,20 @@ public sealed class ActionExecutor
         _ = NativeMethods.SendInput((uint)inputs.Length, inputs, Marshal.SizeOf<NativeMethods.INPUT>());
     }
 
-    private static void ExecuteWindowAction(string command, nint targetWindow)
+    private void ExecuteWindowAction(string command, nint targetWindow)
     {
+        string trimmed = command.Trim();
+        if (string.Equals(trimmed, "sneak", StringComparison.OrdinalIgnoreCase))
+        {
+            ToggleSneakHandler?.Invoke(false);
+            return;
+        }
+        if (string.Equals(trimmed, "sneakall", StringComparison.OrdinalIgnoreCase))
+        {
+            ToggleSneakHandler?.Invoke(true);
+            return;
+        }
+
         if (targetWindow == 0)
         {
             targetWindow = NativeMethods.GetForegroundWindow();

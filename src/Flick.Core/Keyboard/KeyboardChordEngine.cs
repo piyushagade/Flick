@@ -26,9 +26,18 @@ public sealed class KeyboardChordEngine
     private List<GestureRule> _activeSeqRules = [];
     private int _seqMatchedSteps = 0;
     private long _seqDeadlineMs = 0;
+    private GestureRule? _pendingSeqCompletedRule;
+    private long _pendingSeqCommitDeadlineMs = 0;
+    private ChordModifiers _heldModifierFlags = ChordModifiers.None;
 
     public bool HasPendingSimultaneous => _simBuffer.Count > 0;
     public bool HasPendingSequence => _seqMatchedSteps > 0 && _activeSeqRules.Count > 0;
+    public bool HasPendingSequenceCommit => _pendingSeqCompletedRule is not null;
+
+    public int GetRemainingSequenceCommitMs(long timestampMs) =>
+        _pendingSeqCompletedRule is null
+            ? 0
+            : (int)Math.Max(1, _pendingSeqCommitDeadlineMs - timestampMs);
 
     public void Reset()
     {
@@ -39,6 +48,9 @@ public sealed class KeyboardChordEngine
         _activeSeqRules.Clear();
         _seqMatchedSteps = 0;
         _seqDeadlineMs = 0;
+        _pendingSeqCompletedRule = null;
+        _pendingSeqCommitDeadlineMs = 0;
+        _heldModifierFlags = ChordModifiers.None;
     }
 
     public ChordProcessResult ProcessKeyEvent(
@@ -52,10 +64,18 @@ public sealed class KeyboardChordEngine
         int defaultSimWindowMs = 50,
         int defaultSeqTimeoutMs = 1000)
     {
-        // 1. Modifier keys update state in the hook, never buffered as primary chord keys.
+        // 1. Modifier keys: track held state and evaluate modifier-only sequential steps (e.g. Ctrl -> Alt -> Alt).
         if (ChordKeyHelper.IsModifierKey(vkCode))
         {
-            return new ChordProcessResult(false, [], null);
+            return ProcessModifierKeyEvent(
+                vkCode,
+                isKeyDown,
+                activeModifiers,
+                timestampMs,
+                allRules,
+                foregroundProcessName,
+                windowTitle,
+                defaultSeqTimeoutMs);
         }
 
         // 2. KeyUp handling: swallow if this key was part of a matched suppressed chord;
@@ -100,6 +120,8 @@ public sealed class KeyboardChordEngine
         {
             _seqMatchedSteps = 0;
             _activeSeqRules.Clear();
+            _pendingSeqCompletedRule = null;
+            _pendingSeqCommitDeadlineMs = 0;
         }
 
         // 5. Gather matching keyboard chord rules for the active foreground window, ordered by specificity.
@@ -194,10 +216,14 @@ public sealed class KeyboardChordEngine
             {
                 int nextStepCount = _seqMatchedSteps + 1;
                 var completed = advancing.FirstOrDefault(r => r.KeyboardChord!.Steps.Count == nextStepCount);
-                if (completed is not null)
+                var longer = advancing.Where(r => r.KeyboardChord!.Steps.Count > nextStepCount).ToList();
+                int execDelay = completed?.ExecutionDelayMs ?? 0;
+                if (completed is not null && execDelay <= 0)
                 {
                     _seqMatchedSteps = 0;
                     _activeSeqRules.Clear();
+                    _pendingSeqCompletedRule = null;
+                    _pendingSeqCommitDeadlineMs = 0;
                     bool suppress = completed.KeyboardChord!.SuppressKeys;
                     if (suppress)
                     {
@@ -206,26 +232,38 @@ public sealed class KeyboardChordEngine
                     return new ChordProcessResult(suppress, expiredReplay ?? [], completed);
                 }
 
-                _activeSeqRules = advancing;
-                _seqMatchedSteps = nextStepCount;
+                var nextPool = longer.Count > 0 ? longer : [];
+                _activeSeqRules = nextPool;
+                _seqMatchedSteps = nextPool.Count > 0 ? nextStepCount : 0;
                 int timeout = advancing.Max(r => r.KeyboardChord!.TimeoutMs);
-                _seqDeadlineMs = timestampMs + (timeout > 0 ? timeout : Math.Max(100, defaultSeqTimeoutMs));
+                int waitMs = timeout > 0 ? timeout : Math.Max(100, defaultSeqTimeoutMs);
+                _seqDeadlineMs = nextPool.Count > 0 ? timestampMs + Math.Max(execDelay, waitMs) : 0;
+                _pendingSeqCompletedRule = completed;
+                _pendingSeqCommitDeadlineMs = completed is not null ? timestampMs + execDelay : 0;
+
                 bool suppressStep = advancing.Any(r => r.KeyboardChord!.SuppressKeys);
                 if (suppressStep)
                 {
                     _suppressedHeldKeys.Add(vkCode);
                 }
-                var lead = advancing[0];
+                var lead = completed ?? nextPool[0];
                 return new ChordProcessResult(
                     suppressStep,
                     expiredReplay ?? [],
                     null,
-                    $"{lead.Name} ({_seqMatchedSteps}/{lead.KeyboardChord!.Steps.Count})");
+                    $"{lead.Name} ({nextStepCount}/{lead.KeyboardChord!.Steps.Count})");
             }
 
-            // Did not match next step; reset active sequence and fall through to check if it starts a new one.
+            // Did not match next step; if a prefix rule was waiting to commit, fire it now.
+            var pendingCommit = _pendingSeqCompletedRule;
             _seqMatchedSteps = 0;
             _activeSeqRules.Clear();
+            _pendingSeqCompletedRule = null;
+            _pendingSeqCommitDeadlineMs = 0;
+            if (pendingCommit is not null)
+            {
+                return new ChordProcessResult(false, expiredReplay ?? [], pendingCommit);
+            }
         }
 
         var starters = seqRules
@@ -252,6 +290,21 @@ public sealed class KeyboardChordEngine
         }
 
         return new ChordProcessResult(false, expiredReplay ?? [], null);
+    }
+
+    public GestureRule? FlushExpiredSequenceCommit(long timestampMs)
+    {
+        if (_pendingSeqCompletedRule is null || timestampMs < _pendingSeqCommitDeadlineMs)
+        {
+            return null;
+        }
+
+        var rule = _pendingSeqCompletedRule;
+        _pendingSeqCompletedRule = null;
+        _pendingSeqCommitDeadlineMs = 0;
+        _seqMatchedSteps = 0;
+        _activeSeqRules.Clear();
+        return rule;
     }
 
     public IReadOnlyList<int> FlushExpiredSimultaneous(long timestampMs)
@@ -338,5 +391,133 @@ public sealed class KeyboardChordEngine
         return step.Modifiers == activeModifiers &&
                step.KeyCodes.Count == 1 &&
                step.KeyCodes[0] == vkCode;
+    }
+
+    private static bool StepMatchesModifierOnly(ChordStep step, ChordModifiers modifierFlag)
+    {
+        return step.KeyCodes.Count == 0 && step.Modifiers == modifierFlag;
+    }
+
+    private ChordProcessResult ProcessModifierKeyEvent(
+        int vkCode,
+        bool isKeyDown,
+        ChordModifiers activeModifiers,
+        long timestampMs,
+        IEnumerable<GestureRule> allRules,
+        string? foregroundProcessName,
+        string? windowTitle,
+        int defaultSeqTimeoutMs)
+    {
+        var modFlag = ChordKeyHelper.ToModifierFlag(vkCode);
+        if (!isKeyDown)
+        {
+            _heldModifierFlags &= ~modFlag;
+            return new ChordProcessResult(false, [], null);
+        }
+
+        // Ignore OS key-repeat while the modifier is already held.
+        if ((_heldModifierFlags & modFlag) != 0)
+        {
+            return new ChordProcessResult(false, [], null);
+        }
+        _heldModifierFlags |= modFlag;
+
+        // Require a clean modifier tap (no other modifier currently held).
+        if ((activeModifiers & ~modFlag) != ChordModifiers.None)
+        {
+            return new ChordProcessResult(false, [], null);
+        }
+
+        if (_seqMatchedSteps > 0 && timestampMs > _seqDeadlineMs)
+        {
+            _seqMatchedSteps = 0;
+            _activeSeqRules.Clear();
+            _pendingSeqCompletedRule = null;
+            _pendingSeqCommitDeadlineMs = 0;
+        }
+
+        var seqRules = GetScopedChordRules(allRules, foregroundProcessName, windowTitle)
+            .Where(r => r.KeyboardChord!.Mode == KeyboardChordMode.Sequential &&
+                        r.KeyboardChord.Steps.Count >= 2)
+            .ToList();
+
+        if (_seqMatchedSteps > 0 && _activeSeqRules.Count > 0)
+        {
+            var advancing = _activeSeqRules
+                .Where(r => _seqMatchedSteps < r.KeyboardChord!.Steps.Count &&
+                            StepMatchesModifierOnly(r.KeyboardChord.Steps[_seqMatchedSteps], modFlag))
+                .ToList();
+
+            if (advancing.Count > 0)
+            {
+                int nextStepCount = _seqMatchedSteps + 1;
+                var completed = advancing.FirstOrDefault(r => r.KeyboardChord!.Steps.Count == nextStepCount);
+                var longer = advancing.Where(r => r.KeyboardChord!.Steps.Count > nextStepCount).ToList();
+                int execDelay = completed?.ExecutionDelayMs ?? 0;
+                if (completed is not null && execDelay <= 0)
+                {
+                    _seqMatchedSteps = 0;
+                    _activeSeqRules.Clear();
+                    _pendingSeqCompletedRule = null;
+                    _pendingSeqCommitDeadlineMs = 0;
+                    return new ChordProcessResult(false, [], completed);
+                }
+
+                var nextPool = longer.Count > 0 ? longer : [];
+                _activeSeqRules = nextPool;
+                _seqMatchedSteps = nextPool.Count > 0 ? nextStepCount : 0;
+                int timeout = advancing.Max(r => r.KeyboardChord!.TimeoutMs);
+                int waitMs = timeout > 0 ? timeout : Math.Max(100, defaultSeqTimeoutMs);
+                _seqDeadlineMs = nextPool.Count > 0 ? timestampMs + Math.Max(execDelay, waitMs) : 0;
+                _pendingSeqCompletedRule = completed;
+                _pendingSeqCommitDeadlineMs = completed is not null ? timestampMs + execDelay : 0;
+
+                var lead = completed ?? nextPool[0];
+                return new ChordProcessResult(
+                    false,
+                    [],
+                    null,
+                    $"{lead.Name} ({nextStepCount}/{lead.KeyboardChord!.Steps.Count})");
+            }
+
+            // Preserve sequences expecting a Modifier+Key step (e.g. Ctrl+K -> Ctrl+B).
+            bool expectingKeyStep = _activeSeqRules.Any(r =>
+                _seqMatchedSteps < r.KeyboardChord!.Steps.Count &&
+                r.KeyboardChord.Steps[_seqMatchedSteps].KeyCodes.Count > 0);
+            if (expectingKeyStep)
+            {
+                return new ChordProcessResult(false, [], null);
+            }
+
+            var pendingCommit = _pendingSeqCompletedRule;
+            _seqMatchedSteps = 0;
+            _activeSeqRules.Clear();
+            _pendingSeqCompletedRule = null;
+            _pendingSeqCommitDeadlineMs = 0;
+            if (pendingCommit is not null)
+            {
+                return new ChordProcessResult(false, [], pendingCommit);
+            }
+        }
+
+        var starters = seqRules
+            .Where(r => StepMatchesModifierOnly(r.KeyboardChord!.Steps[0], modFlag))
+            .ToList();
+
+        if (starters.Count > 0)
+        {
+            _activeSeqRules = starters;
+            _seqMatchedSteps = 1;
+            int timeout = starters.Max(r => r.KeyboardChord!.TimeoutMs);
+            _seqDeadlineMs = timestampMs + (timeout > 0 ? timeout : Math.Max(100, defaultSeqTimeoutMs));
+            var lead = starters[0];
+            return new ChordProcessResult(
+                false,
+                [],
+                null,
+                $"{lead.Name} (1/{lead.KeyboardChord!.Steps.Count})");
+        }
+
+        return new ChordProcessResult(false, [], null);
     }
 }

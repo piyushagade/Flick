@@ -52,6 +52,11 @@ public sealed class GestureRule
     public int RequiredRepetitions { get; set; } = 1;
 
     /// <summary>
+    /// Optional execution delay in milliseconds (0 = immediate). For overlapping chord prefixes, waits this long for additional keys before firing.
+    /// </summary>
+    public int ExecutionDelayMs { get; set; } = 0;
+
+    /// <summary>
     /// Optional ordered follow-up gestures that must be performed after the primary gesture.
     /// </summary>
     public List<GestureSequenceStep>? FollowUpGestures { get; set; }

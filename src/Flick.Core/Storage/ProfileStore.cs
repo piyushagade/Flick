@@ -47,13 +47,24 @@ public sealed class ProfileStore
                     loaded.Settings.HotCornerActions ??= [];
                     loaded.Settings.ScopeTrailColors ??= [];
 
-                    // Ensure newly added built-in gestures (e.g. builtin-tap, pinch) exist in older profiles.
-                    var existingIds = new HashSet<string>(loaded.Gestures.Select(g => g.Id), StringComparer.Ordinal);
+                    // Ensure newly added built-in gestures (e.g. builtin-tap, pinch) exist and have up-to-date multi-stroke previews in older profiles.
+                    var existingById = new Dictionary<string, GestureDefinition>(StringComparer.Ordinal);
+                    foreach (var g in loaded.Gestures)
+                    {
+                        existingById.TryAdd(g.Id, g);
+                    }
+
                     foreach (var builtIn in DefaultProfileFactory.CreateDefaultGestures())
                     {
-                        if (existingIds.Add(builtIn.Id))
+                        if (!existingById.TryGetValue(builtIn.Id, out var existing))
                         {
                             loaded.Gestures.Add(builtIn);
+                        }
+                        else if (existing.IsBuiltIn &&
+                                 builtIn.FingerStrokes is { Count: > 1 } &&
+                                 (existing.FingerStrokes is null || existing.FingerStrokes.Count <= 1))
+                        {
+                            existing.FingerStrokes = builtIn.FingerStrokes;
                         }
                     }
 
