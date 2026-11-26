@@ -26,12 +26,12 @@
         <!-- Bins-style Two-Column Shell -->
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="244" />
+                <ColumnDefinition Width="220" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
             <!-- Left Sidebar -->
-            <Grid Grid.Column="0" Padding="12,8,12,14">
+            <Grid Grid.Column="0" Padding="10,6,10,10">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="*" />
@@ -39,7 +39,7 @@
                 </Grid.RowDefinitions>
 
                 <!-- Sidebar Top Header -->
-                <Grid Grid.Row="0" Padding="8,4,4,10">
+                <Grid Grid.Row="0" Padding="8,2,2,6">
                     <TextBlock Text="Scopes" Style="{StaticResource BodyStrongTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
                     <Button
                         HorizontalAlignment="Right"
@@ -62,21 +62,21 @@
                                 <Button
                                     HorizontalAlignment="Stretch"
                                     HorizontalContentAlignment="Stretch"
-                                    Padding="12,9"
-                                    Margin="0,2"
-                                    CornerRadius="8"
+                                    Padding="10,6"
+                                    Margin="0,1"
+                                    CornerRadius="6"
                                     Background="{Binding BackgroundBrush}"
                                     BorderThickness="0"
                                     Tag="{Binding Tag}"
                                     Click="ScopeButton_Click">
-                                    <Grid ColumnSpacing="10">
+                                    <Grid ColumnSpacing="9">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto" />
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
-                                        <FontIcon Grid.Column="0" Glyph="{Binding Glyph}" FontSize="15" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
-                                        <TextBlock Grid.Column="1" Text="{Binding Label}" VerticalAlignment="Center" />
+                                        <FontIcon Grid.Column="0" Glyph="{Binding Glyph}" FontSize="14" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                                        <TextBlock Grid.Column="1" Text="{Binding Label}" FontSize="13.5" VerticalAlignment="Center" />
                                         <Border Grid.Column="2" CornerRadius="10" Padding="7,1" Background="{ThemeResource SubtleFillColorSecondaryBrush}" VerticalAlignment="Center">
                                             <TextBlock Text="{Binding Count}" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                                         </Border>
@@ -88,35 +88,35 @@
                 </ScrollViewer>
 
                 <!-- Bottom Pinned Navigation -->
-                <StackPanel Grid.Row="2" Spacing="3" Padding="0,10,0,0" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,1,0,0">
-                    <Button x:Name="NavDashboardBtn" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Padding="12,9" CornerRadius="8" Background="Transparent" BorderThickness="0" Tag="home" Click="FooterNav_Click">
-                        <StackPanel Orientation="Horizontal" Spacing="12">
-                            <FontIcon Glyph="&#xE80F;" FontSize="15" />
-                            <TextBlock Text="Dashboard" />
+                <StackPanel Grid.Row="2" Spacing="1" Padding="0,8,0,0" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,1,0,0">
+                    <Button x:Name="NavDashboardBtn" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Padding="10,6" CornerRadius="6" Background="Transparent" BorderThickness="0" Tag="home" Click="FooterNav_Click">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <FontIcon Glyph="&#xE80F;" FontSize="14" />
+                            <TextBlock Text="Dashboard" FontSize="13.5" />
                         </StackPanel>
                     </Button>
-                    <Button x:Name="NavCornersBtn" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Padding="12,9" CornerRadius="8" Background="Transparent" BorderThickness="0" Tag="corners" Click="FooterNav_Click">
-                        <StackPanel Orientation="Horizontal" Spacing="12">
-                            <FontIcon Glyph="&#xE744;" FontSize="15" />
-                            <TextBlock Text="Corners" />
+                    <Button x:Name="NavCornersBtn" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Padding="10,6" CornerRadius="6" Background="Transparent" BorderThickness="0" Tag="corners" Click="FooterNav_Click">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <FontIcon Glyph="&#xE744;" FontSize="14" />
+                            <TextBlock Text="Corners" FontSize="13.5" />
                         </StackPanel>
                     </Button>
-                    <Button x:Name="NavSettingsBtn" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Padding="12,9" CornerRadius="8" Background="Transparent" BorderThickness="0" Tag="settings" Click="FooterNav_Click">
-                        <StackPanel Orientation="Horizontal" Spacing="12">
-                            <FontIcon Glyph="&#xE713;" FontSize="15" />
-                            <TextBlock Text="Settings" />
+                    <Button x:Name="NavSettingsBtn" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Padding="10,6" CornerRadius="6" Background="Transparent" BorderThickness="0" Tag="settings" Click="FooterNav_Click">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <FontIcon Glyph="&#xE713;" FontSize="14" />
+                            <TextBlock Text="Settings" FontSize="13.5" />
                         </StackPanel>
                     </Button>
-                    <Button x:Name="NavWhatsNewBtn" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Padding="12,9" CornerRadius="8" Background="Transparent" BorderThickness="0" Tag="whatsnew" Click="FooterNav_Click">
-                        <StackPanel Orientation="Horizontal" Spacing="12">
-                            <FontIcon Glyph="&#xE789;" FontSize="15" />
-                            <TextBlock Text="What's New" />
+                    <Button x:Name="NavWhatsNewBtn" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Padding="10,6" CornerRadius="6" Background="Transparent" BorderThickness="0" Tag="whatsnew" Click="FooterNav_Click">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <FontIcon Glyph="&#xE789;" FontSize="14" />
+                            <TextBlock Text="What's New" FontSize="13.5" />
                         </StackPanel>
                     </Button>
-                    <Button x:Name="NavAboutBtn" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Padding="12,9" CornerRadius="8" Background="Transparent" BorderThickness="0" Tag="about" Click="FooterNav_Click">
-                        <StackPanel Orientation="Horizontal" Spacing="12">
-                            <FontIcon Glyph="&#xE946;" FontSize="15" />
-                            <TextBlock Text="About Flick" />
+                    <Button x:Name="NavAboutBtn" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Padding="10,6" CornerRadius="6" Background="Transparent" BorderThickness="0" Tag="about" Click="FooterNav_Click">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <FontIcon Glyph="&#xE946;" FontSize="14" />
+                            <TextBlock Text="About Flick" FontSize="13.5" />
                         </StackPanel>
                     </Button>
                 </StackPanel>
