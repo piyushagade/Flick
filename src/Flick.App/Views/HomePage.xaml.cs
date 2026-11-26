@@ -1,22 +1,19 @@
-using Flick.Core.Keyboard;
-using Flick.Core.Knock;
 using Flick.Core.Models;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
+using Windows.UI;
 
 namespace Flick.App.Views;
-
-public sealed record DashboardRuleItem(
-    string Id,
-    string Glyph,
-    string Name,
-    string ScopeLabel,
-    string Summary,
-    bool IsEnabled);
 
 public sealed partial class HomePage : Page
 {
     private bool _suppressToggle;
+
+    private static readonly SolidColorBrush EmeraldBrush = new(Color.FromArgb(255, 16, 185, 129));
+    private static readonly SolidColorBrush VioletBrush = new(Color.FromArgb(255, 139, 92, 246));
+    private static readonly SolidColorBrush AmberBrush = new(Color.FromArgb(255, 245, 158, 11));
+    private static readonly SolidColorBrush MutedBadgeBrush = new(Color.FromArgb(255, 82, 82, 91));
 
     public HomePage()
     {
@@ -64,53 +61,15 @@ public sealed partial class HomePage : Page
         ChordSubText.Text = $"Simultaneous & sequential • {chordRules} active rule(s)";
         KnockSubText.Text = $"{s.KnockSurfaces.Count} calibrated surface(s) • {knockRules} active rule(s)";
 
-        var gestureMap = profile.Gestures.ToDictionary(g => g.Id, g => g);
-        var items = new List<DashboardRuleItem>();
-        foreach (var rule in profile.Rules)
-        {
-            string glyph;
-            string triggerLabel;
-            if (rule.TriggerType == TriggerType.KeyboardChord)
-            {
-                glyph = "\uE765";
-                triggerLabel = ChordKeyHelper.FormatChord(rule.KeyboardChord);
-            }
-            else if (rule.TriggerType == TriggerType.KnockPattern)
-            {
-                glyph = "\uE720";
-                triggerLabel = KnockPatternMatcher.FormatPattern(rule.KnockPattern);
-            }
-            else
-            {
-                glyph = rule.InputSource == GestureInputSource.Touchpad ? "\uE815" : "\uE962";
-                triggerLabel = gestureMap.TryGetValue(rule.GestureId, out var g) ? g.Name : "Gesture";
-            }
-
-            string scope = rule.IsGlobal ? "Global" : rule.ApplicationFilter;
-            items.Add(new DashboardRuleItem(
-                rule.Id,
-                glyph,
-                string.IsNullOrWhiteSpace(rule.Name) ? "Untitled" : rule.Name,
-                scope,
-                $"{triggerLabel}  →  {rule.ActionType}: {rule.ActionPayload}",
-                rule.IsEnabled));
-        }
-
-        int enabledCount = profile.Rules.Count(r => r.IsEnabled);
-        RulesSummaryText.Text = $"{enabledCount} of {profile.Rules.Count} enabled";
-        EmptyRulesText.Visibility = items.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
-
-        _suppressToggle = true;
-        ActiveRulesList.ItemsSource = items;
-        _suppressToggle = false;
-
         bool active = s.IsEnabled;
         TriggerEnginesCard.Opacity = active ? 1.0 : 0.45;
-        ActiveRulesCard.Opacity = active ? 1.0 : 0.45;
         TouchpadQuickToggle.IsEnabled = active;
         ChordQuickToggle.IsEnabled = active;
         KnockQuickToggle.IsEnabled = active;
-        ActiveRulesList.IsHitTestVisible = active;
+
+        TouchpadBadge.Background = (active && s.EnableTouchpadGestures) ? EmeraldBrush : MutedBadgeBrush;
+        ChordBadge.Background = (active && s.EnableKeyboardChords) ? VioletBrush : MutedBadgeBrush;
+        KnockBadge.Background = (active && s.EnableKnockDetection) ? AmberBrush : MutedBadgeBrush;
     }
 
     private void EngineToggle_Toggled(object sender, RoutedEventArgs e)
@@ -127,15 +86,6 @@ public sealed partial class HomePage : Page
         s.EnableTouchpadGestures = TouchpadQuickToggle.IsOn;
         s.EnableKeyboardChords = ChordQuickToggle.IsOn;
         s.EnableKnockDetection = KnockQuickToggle.IsOn;
-        App.Engine.SaveProfile();
-    }
-
-    private void RuleQuickToggle_Toggled(object sender, RoutedEventArgs e)
-    {
-        if (_suppressToggle || sender is not ToggleSwitch ts || ts.Tag is not string id) return;
-        var rule = App.Engine.Profile.Rules.FirstOrDefault(r => r.Id == id);
-        if (rule is null) return;
-        rule.IsEnabled = ts.IsOn;
         App.Engine.SaveProfile();
     }
 }
