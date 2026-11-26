@@ -54,6 +54,7 @@
                     <Border
                         Margin="0,4"
                         Padding="14,12"
+                        Opacity="{Binding RowOpacity}"
                         Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                         BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                         BorderThickness="1"
@@ -159,6 +160,7 @@
                                 <ToggleSwitch
                                     Grid.Column="2"
                                     IsOn="{Binding IsEnabled, Mode=OneWay}"
+                                    IsEnabled="{Binding IsEngineActive}"
                                     OnContent=""
                                     OffContent=""
                                     MinWidth="0"

@@ -24,6 +24,8 @@ public sealed class RuleRowViewModel
     public required string ScopeBadge { get; init; }
     public required string ActionSummary { get; init; }
     public required bool IsEnabled { get; init; }
+    public required bool IsEngineActive { get; init; }
+    public required double RowOpacity { get; init; }
     public required IReadOnlyList<PreviewStrokeViewModel> PreviewStrokes { get; init; }
     public required IReadOnlyList<TapDotViewModel> TapDots { get; init; }
     public required Visibility StrokeVisibility { get; init; }
@@ -144,13 +146,25 @@ public sealed partial class RulesPage : Page
             bool isTap = !isChord && !isKnock && string.Equals(rule.GestureId, "builtin-tap", StringComparison.Ordinal);
             string repBadge = !isChord && !isKnock && rule.RequiredRepetitions > 1 ? $" • {rule.RequiredRepetitions}×" : "";
             string seqBadge = !isChord && !isKnock && rule.FollowUpGestures is { Count: > 0 } ? $" • {1 + rule.FollowUpGestures.Count}-Step" : "";
+
+            var settings = profile.Settings;
+            bool triggerEngineEnabled = settings.IsEnabled && rule.TriggerType switch
+            {
+                TriggerType.KeyboardChord => settings.EnableKeyboardChords,
+                TriggerType.KnockPattern => settings.EnableKnockDetection,
+                _ => rule.InputSource != GestureInputSource.Touchpad || settings.EnableTouchpadGestures
+            };
+            string engineOffBadge = !settings.IsEnabled ? " • Paused" : (!triggerEngineEnabled ? " • Engine Off" : "");
+
             items.Add(new RuleRowViewModel
             {
                 Id = rule.Id,
                 Name = rule.Name,
-                ScopeBadge = $"{scopeLabel} • {sourceLabel}{repBadge}{seqBadge}",
+                ScopeBadge = $"{scopeLabel} • {sourceLabel}{repBadge}{seqBadge}{engineOffBadge}",
                 ActionSummary = $"{gestureName}  →  {rule.ActionType}: {rule.ActionPayload}",
                 IsEnabled = rule.IsEnabled,
+                IsEngineActive = triggerEngineEnabled,
+                RowOpacity = triggerEngineEnabled ? 1.0 : 0.45,
                 PreviewStrokes = !isChord && !isKnock && !isTap ? BuildPreviewStrokes(gesture) : [],
                 TapDots = isTap ? BuildPreviewTapDots(rule) : [],
                 StrokeVisibility = !isChord && !isKnock && !isTap ? Visibility.Visible : Visibility.Collapsed,
