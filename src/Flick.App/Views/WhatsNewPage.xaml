@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="Flick.App.Views.WhatsNewPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <Grid RowSpacing="16" MaxWidth="980" Padding="0,0,16,16">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <StackPanel Grid.Row="0" Spacing="2">
+                <TextBlock Text="What's New" Style="{StaticResource TitleTextBlockStyle}" />
+                <TextBlock Text="Feature additions and improvements across Flick for Windows 11 releases." Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            </StackPanel>
+
+            <ItemsControl x:Name="ReleasesList" Grid.Row="1">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border
+                            Margin="0,0,0,14"
+                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                            BorderThickness="1"
+                            CornerRadius="10"
+                            Padding="20,16">
+                            <StackPanel Spacing="12">
+                                <Grid>
+                                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Version}" Style="{StaticResource SubtitleTextBlockStyle}" />
+                                        <Border
+                                            Visibility="{Binding LatestVisibility}"
+                                            CornerRadius="10"
+                                            Padding="8,2"
+                                            Background="{ThemeResource AccentFillColorDefaultBrush}"
+                                            VerticalAlignment="Center">
+                                            <TextBlock Text="Latest" Style="{StaticResource CaptionTextBlockStyle}" Foreground="White" FontWeight="SemiBold" />
+                                        </Border>
+                                    </StackPanel>
+                                    <TextBlock
+                                        Text="{Binding Title}"
+                                        HorizontalAlignment="Right"
+                                        VerticalAlignment="Center"
+                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                </Grid>
+
+                                <ItemsControl ItemsSource="{Binding Notes}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Grid Margin="0,3" ColumnSpacing="10">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <Ellipse Grid.Column="0" Width="5" Height="5" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Margin="0,7,0,0" VerticalAlignment="Top" />
+                                                <TextBlock Grid.Column="1" Text="{Binding}" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </Grid>
+    </ScrollViewer>
+</Page>

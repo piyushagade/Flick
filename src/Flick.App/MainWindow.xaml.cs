@@ -65,6 +65,8 @@ public sealed partial class MainWindow : Window
             "rules" => typeof(RulesPage),
             "corners" => typeof(CornersPage),
             "settings" => typeof(SettingsPage),
+            "whatsnew" => typeof(WhatsNewPage),
+            "about" => typeof(AboutPage),
             _ => typeof(HomePage)
         };
 
@@ -81,6 +83,8 @@ public sealed partial class MainWindow : Window
         NavDashboardBtn.Background = _activePageTag == "home" ? activeBrush : transparent;
         NavCornersBtn.Background = _activePageTag == "corners" ? activeBrush : transparent;
         NavSettingsBtn.Background = _activePageTag == "settings" ? activeBrush : transparent;
+        NavWhatsNewBtn.Background = _activePageTag == "whatsnew" ? activeBrush : transparent;
+        NavAboutBtn.Background = _activePageTag == "about" ? activeBrush : transparent;
     }
 
     private void FooterNav_Click(object sender, RoutedEventArgs e)

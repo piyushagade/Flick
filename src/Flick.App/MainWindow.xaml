@@ -107,6 +107,18 @@
                             <TextBlock Text="Settings" />
                         </StackPanel>
                     </Button>
+                    <Button x:Name="NavWhatsNewBtn" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Padding="12,9" CornerRadius="8" Background="Transparent" BorderThickness="0" Tag="whatsnew" Click="FooterNav_Click">
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <FontIcon Glyph="&#xE789;" FontSize="15" />
+                            <TextBlock Text="What's New" />
+                        </StackPanel>
+                    </Button>
+                    <Button x:Name="NavAboutBtn" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Padding="12,9" CornerRadius="8" Background="Transparent" BorderThickness="0" Tag="about" Click="FooterNav_Click">
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <FontIcon Glyph="&#xE946;" FontSize="15" />
+                            <TextBlock Text="About Flick" />
+                        </StackPanel>
+                    </Button>
                 </StackPanel>
             </Grid>
 
