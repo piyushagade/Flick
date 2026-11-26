@@ -103,6 +103,14 @@ public sealed partial class HomePage : Page
         _suppressToggle = true;
         ActiveRulesList.ItemsSource = items;
         _suppressToggle = false;
+
+        bool active = s.IsEnabled;
+        TriggerEnginesCard.Opacity = active ? 1.0 : 0.45;
+        ActiveRulesCard.Opacity = active ? 1.0 : 0.45;
+        TouchpadQuickToggle.IsEnabled = active;
+        ChordQuickToggle.IsEnabled = active;
+        KnockQuickToggle.IsEnabled = active;
+        ActiveRulesList.IsHitTestVisible = active;
     }
 
     private void EngineToggle_Toggled(object sender, RoutedEventArgs e)

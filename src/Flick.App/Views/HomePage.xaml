@@ -69,6 +69,7 @@
 
             <!-- Interactive Trigger Engines -->
             <Border
+                x:Name="TriggerEnginesCard"
                 Grid.Row="2"
                 Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                 BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
@@ -131,6 +132,7 @@
 
             <!-- Active Rules Cheat-Sheet -->
             <Border
+                x:Name="ActiveRulesCard"
                 Grid.Row="3"
                 Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                 BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
