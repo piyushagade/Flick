@@ -1,15 +1,9 @@
 using System.Collections.Specialized;
+using Flick.Core.Models;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 
 namespace Flick.App.Views;
-
-public sealed record ActivityRowViewModel(
-    string TimeText,
-    string GestureName,
-    string RuleName,
-    string ProcessName,
-    string ConfidenceText);
 
 public sealed partial class HomePage : Page
 {
@@ -25,7 +19,7 @@ public sealed partial class HomePage : Page
     private void HomePage_Loaded(object sender, RoutedEventArgs e)
     {
         RefreshStats();
-        RefreshActivity();
+        RefreshSessionStats();
         App.Engine.ProfileChanged += RefreshStats;
         App.Engine.RecentActivity.CollectionChanged += RecentActivity_CollectionChanged;
     }
@@ -38,7 +32,7 @@ public sealed partial class HomePage : Page
 
     private void RecentActivity_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
-        RefreshActivity();
+        RefreshSessionStats();
     }
 
     private void RefreshStats()
@@ -50,59 +44,58 @@ public sealed partial class HomePage : Page
         EngineToggle.IsOn = s.IsEnabled;
         _suppressToggle = false;
 
-        StatusTitleText.Text = s.IsEnabled
-            ? "Gesture Engine Active"
-            : "Gesture Engine Paused";
-
+        StatusTitleText.Text = s.IsEnabled ? "Flick Engine Active" : "Flick Engine Paused";
         StatusPillText.Text = s.IsEnabled ? "LIVE" : "PAUSED";
 
-        StatusSubtitleText.Text = s.IsEnabled
-            ? $"Mouse ({s.TriggerButton} drag) and {(s.EnableTouchpadGestures ? "Multi-Finger Touchpad (2–5 fingers)" : "Touchpad disabled")} are listening."
-            : "Toggle the switch to resume global gesture recognition.";
+        if (s.IsEnabled)
+        {
+            var activeTriggers = new List<string> { "Mouse" };
+            if (s.EnableTouchpadGestures) activeTriggers.Add("Touchpad");
+            if (s.EnableKeyboardChords) activeTriggers.Add("Keyboard Chords");
+            if (s.EnableKnockDetection) activeTriggers.Add("Acoustic Knock");
+            StatusSubtitleText.Text = $"Listening: {string.Join(" • ", activeTriggers)}";
+        }
+        else
+        {
+            StatusSubtitleText.Text = "Toggle the switch to resume global trigger recognition.";
+        }
 
         int enabledRules = profile.Rules.Count(r => r.IsEnabled);
+        int scopeCount = profile.Scopes.Count;
         ActiveRulesCountText.Text = enabledRules.ToString();
-        TotalRulesSubText.Text = $"{profile.Rules.Count} total configured";
+        TotalRulesSubText.Text = $"{profile.Rules.Count} total • Global{(scopeCount > 0 ? $" + {scopeCount} app scope(s)" : "")}";
+
+        int gestureRules = profile.Rules.Count(r => r.IsEnabled && r.TriggerType == TriggerType.Gesture && r.InputSource != GestureInputSource.Touchpad);
+        int touchpadRules = profile.Rules.Count(r => r.IsEnabled && r.TriggerType == TriggerType.Gesture && r.InputSource == GestureInputSource.Touchpad);
+        int chordRules = profile.Rules.Count(r => r.IsEnabled && r.TriggerType == TriggerType.KeyboardChord);
+        int knockRules = profile.Rules.Count(r => r.IsEnabled && r.TriggerType == TriggerType.KnockPattern);
+
+        TriggerButtonText.Text = $"{s.TriggerButton} Button";
+        TriggerSubText.Text = $"{s.MinimumStrokeLength:0} px min drag • {gestureRules} rule(s)";
 
         TouchpadStatusText.Text = s.EnableTouchpadGestures ? "2–5 Fingers" : "Disabled";
         TouchpadSubText.Text = App.Engine.IsTouchpadDetected
-            ? "Precision Touchpad ready"
-            : "Waiting for touchpad input";
+            ? $"Precision Touchpad ready • {touchpadRules} rule(s)"
+            : $"Waiting for touchpad • {touchpadRules} rule(s)";
 
-        TriggerButtonText.Text = s.TriggerButton.ToString();
-        TriggerSubText.Text = $"{s.MinimumStrokeLength:0} px min drag";
+        ChordStatusText.Text = s.EnableKeyboardChords ? "Active" : "Disabled";
+        ChordSubText.Text = $"Simultaneous & Sequential • {chordRules} rule(s)";
+
+        KnockStatusText.Text = s.EnableKnockDetection ? "Listening" : "Off";
+        KnockSubText.Text = $"{s.KnockSurfaces.Count} surface(s) calibrated • {knockRules} rule(s)";
     }
 
-    private void RefreshActivity()
+    private void RefreshSessionStats()
     {
         var items = App.Engine.RecentActivity;
         SessionCountText.Text = items.Count.ToString();
-        SessionSubText.Text = $"{items.Count(a => a.Executed)} actions executed";
-        EmptyActivityText.Visibility = items.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
-
-        ActivityList.ItemsSource = items
-            .Select(a => new ActivityRowViewModel(
-                a.Timestamp.ToString("HH:mm:ss"),
-                a.GestureName,
-                a.RuleName,
-                a.ProcessName,
-                $"{a.Confidence:P0}"))
-            .ToList();
+        SessionSubText.Text = $"{items.Count(a => a.Executed)} actions executed this session";
     }
 
     private void EngineToggle_Toggled(object sender, RoutedEventArgs e)
     {
-        if (_suppressToggle)
-        {
-            return;
-        }
-
+        if (_suppressToggle) return;
         App.Engine.Profile.Settings.IsEnabled = EngineToggle.IsOn;
         App.Engine.SaveProfile();
-    }
-
-    private void ClearActivity_Click(object sender, RoutedEventArgs e)
-    {
-        App.Engine.RecentActivity.Clear();
     }
 }
