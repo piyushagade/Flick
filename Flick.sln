@@ -1,0 +1,43 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{E20DEECD-C82F-4CB9-B890-1A3FF410FEAD}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Flick.Core", "src\Flick.Core\Flick.Core.csproj", "{DABAA35D-2A64-4668-9E27-C5B65D32AEA3}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Flick.App", "src\Flick.App\Flick.App.csproj", "{3B593A66-FB69-4F19-A768-B0D9F814B4A7}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{D7B8AF0D-BDDA-4EAF-9573-6DCF4E8FB866}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Flick.Core.Tests", "tests\Flick.Core.Tests\Flick.Core.Tests.csproj", "{9CE426F6-2115-4722-879E-0DA38C3730ED}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{DABAA35D-2A64-4668-9E27-C5B65D32AEA3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DABAA35D-2A64-4668-9E27-C5B65D32AEA3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DABAA35D-2A64-4668-9E27-C5B65D32AEA3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DABAA35D-2A64-4668-9E27-C5B65D32AEA3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3B593A66-FB69-4F19-A768-B0D9F814B4A7}.Debug|Any CPU.ActiveCfg = Debug|x64
+		{3B593A66-FB69-4F19-A768-B0D9F814B4A7}.Debug|Any CPU.Build.0 = Debug|x64
+		{3B593A66-FB69-4F19-A768-B0D9F814B4A7}.Release|Any CPU.ActiveCfg = Release|x64
+		{3B593A66-FB69-4F19-A768-B0D9F814B4A7}.Release|Any CPU.Build.0 = Release|x64
+		{9CE426F6-2115-4722-879E-0DA38C3730ED}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9CE426F6-2115-4722-879E-0DA38C3730ED}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9CE426F6-2115-4722-879E-0DA38C3730ED}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9CE426F6-2115-4722-879E-0DA38C3730ED}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{DABAA35D-2A64-4668-9E27-C5B65D32AEA3} = {E20DEECD-C82F-4CB9-B890-1A3FF410FEAD}
+		{3B593A66-FB69-4F19-A768-B0D9F814B4A7} = {E20DEECD-C82F-4CB9-B890-1A3FF410FEAD}
+		{9CE426F6-2115-4722-879E-0DA38C3730ED} = {D7B8AF0D-BDDA-4EAF-9573-6DCF4E8FB866}
+	EndGlobalSection
+EndGlobal
