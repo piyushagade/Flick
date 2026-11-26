@@ -1,3 +1,4 @@
+using Flick.Core.Knock;
 using Flick.Core.Models;
 using Flick.Core.Storage;
 using Microsoft.UI.Xaml;
@@ -6,15 +7,21 @@ using Microsoft.UI.Xaml.Controls.Primitives;
 
 namespace Flick.App.Views;
 
+public sealed record SurfaceRowViewModel(string Id, string Name, string SampleCountText);
+
 public sealed partial class SettingsPage : Page
 {
     private bool _loading;
+    private bool _isCalibrating;
+    private bool _isTestingSurface;
+    private readonly List<float[]> _calSamples = [];
 
     public SettingsPage()
     {
         _loading = true;
         InitializeComponent();
         Loaded += (_, _) => LoadFromSettings();
+        Unloaded += (_, _) => StopKnockCapture();
     }
 
     private void LoadFromSettings()
@@ -63,7 +70,115 @@ public sealed partial class SettingsPage : Page
         RippleSpeedLabel.Text = $"{s.RippleSpeed:0.0}×";
 
         IgnoredAppsBox.Text = string.Join(", ", s.IgnoredProcesses);
+        RefreshSurfacesList();
         _loading = false;
+    }
+
+    private void RefreshSurfacesList()
+    {
+        var surfaces = App.Engine.Profile.Settings.KnockSurfaces;
+        CalibratedSurfacesList.ItemsSource = surfaces
+            .Select(s => new SurfaceRowViewModel(s.Id, s.Name, $"{s.SampleFeatures.Count} samples"))
+            .ToList();
+    }
+
+    private void StopKnockCapture()
+    {
+        if (!_isCalibrating && !_isTestingSurface) return;
+        _isCalibrating = false;
+        _isTestingSurface = false;
+        App.Engine.EndKnockRecording();
+        CalibrateSurfaceBtn.Content = "Calibrate (5×)";
+        TestSurfaceBtn.Content = "Test Detection";
+    }
+
+    private void CalibrateSurfaceBtn_Click(object sender, RoutedEventArgs e)
+    {
+        if (_isCalibrating)
+        {
+            StopKnockCapture();
+            CalStatusText.Text = "Calibration cancelled.";
+            return;
+        }
+
+        string surfName = string.IsNullOrWhiteSpace(CalSurfaceNameCombo.Text)
+            ? "Custom Surface"
+            : CalSurfaceNameCombo.Text.Trim();
+
+        StopKnockCapture();
+        _isCalibrating = true;
+        _calSamples.Clear();
+        CalibrateSurfaceBtn.Content = "Cancel";
+        CalStatusText.Text = $"● Knock 5 times on \"{surfName}\" (0/5)...";
+
+        App.Engine.BeginKnockRecording(ev =>
+        {
+            _calSamples.Add(ev.Features);
+            int count = _calSamples.Count;
+            DispatcherQueue.TryEnqueue(() =>
+            {
+                if (!_isCalibrating) return;
+                if (count < 5)
+                {
+                    CalStatusText.Text = $"● Knock 5 times on \"{surfName}\" ({count}/5)...";
+                    return;
+                }
+
+                StopKnockCapture();
+                var surfaces = App.Engine.Profile.Settings.KnockSurfaces;
+                var existing = surfaces.FirstOrDefault(s => string.Equals(s.Name, surfName, StringComparison.OrdinalIgnoreCase));
+                if (existing is null)
+                {
+                    existing = new KnockSurfaceProfile { Name = surfName };
+                    surfaces.Add(existing);
+                }
+                existing.SampleFeatures = [.. _calSamples];
+                App.Engine.SaveProfile();
+                RefreshSurfacesList();
+                CalStatusText.Text = $"Calibrated \"{surfName}\" with 5 samples.";
+            });
+        });
+    }
+
+    private void TestSurfaceBtn_Click(object sender, RoutedEventArgs e)
+    {
+        if (_isTestingSurface)
+        {
+            StopKnockCapture();
+            CalStatusText.Text = "Test stopped.";
+            return;
+        }
+
+        if (App.Engine.Profile.Settings.KnockSurfaces.Count == 0)
+        {
+            CalStatusText.Text = "Calibrate at least one surface first before testing.";
+            return;
+        }
+
+        StopKnockCapture();
+        _isTestingSurface = true;
+        TestSurfaceBtn.Content = "Stop Test";
+        CalStatusText.Text = "● Listening — knock on any calibrated surface to test...";
+
+        App.Engine.BeginKnockRecording(ev =>
+        {
+            var res = KnockSurfaceClassifier.Classify(ev.Features, App.Engine.Profile.Settings.KnockSurfaces);
+            DispatcherQueue.TryEnqueue(() =>
+            {
+                if (!_isTestingSurface) return;
+                CalStatusText.Text = res.Surface is not null
+                    ? $"Detected: {res.Surface.Name} ({res.Confidence:P0} confidence)"
+                    : $"Unrecognized surface (best score {res.Confidence:P0})";
+            });
+        });
+    }
+
+    private void DeleteSurface_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button btn || btn.Tag is not string id) return;
+        App.Engine.Profile.Settings.KnockSurfaces.RemoveAll(s => s.Id == id);
+        App.Engine.SaveProfile();
+        RefreshSurfacesList();
     }
 
     private static void SelectComboByTag(ComboBox combo, string tag)

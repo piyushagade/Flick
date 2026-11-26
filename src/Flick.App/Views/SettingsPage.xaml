@@ -157,6 +157,53 @@
 
                         <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
 
+                        <StackPanel Padding="16,12" Spacing="10">
+                            <StackPanel Spacing="2">
+                                <TextBlock Text="Knock Surface Calibration" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                                <TextBlock Text="Train Flick to distinguish knocks on your Touchpad, Laptop Lid, or Desk" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            </StackPanel>
+
+                            <Grid ColumnSpacing="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <ComboBox x:Name="CalSurfaceNameCombo" Grid.Column="0" IsEditable="True" HorizontalAlignment="Stretch" SelectedIndex="0">
+                                    <x:String>Touchpad</x:String>
+                                    <x:String>Laptop Lid</x:String>
+                                    <x:String>Desk</x:String>
+                                </ComboBox>
+                                <Button x:Name="CalibrateSurfaceBtn" Grid.Column="1" Content="Calibrate (5×)" Style="{StaticResource AccentButtonStyle}" Click="CalibrateSurfaceBtn_Click" />
+                                <Button x:Name="TestSurfaceBtn" Grid.Column="2" Content="Test Detection" Click="TestSurfaceBtn_Click" />
+                            </Grid>
+
+                            <TextBlock x:Name="CalStatusText" Text="Select a surface and click Calibrate (5×) to record 5 sample knocks." Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
+
+                            <ItemsControl x:Name="CalibratedSurfacesList">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Margin="0,2" Padding="10,6" CornerRadius="6" Background="{ThemeResource SubtleFillColorSecondaryBrush}">
+                                            <Grid ColumnSpacing="8">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="{Binding Name}" Style="{StaticResource BodyStrongTextBlockStyle}" VerticalAlignment="Center" />
+                                                <TextBlock Grid.Column="1" Text="{Binding SampleCountText}" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
+                                                <Button Grid.Column="2" Tag="{Binding Id}" Click="DeleteSurface_Click" ToolTipService.ToolTip="Remove surface">
+                                                    <FontIcon Glyph="&#xE74D;" FontSize="12" />
+                                                </Button>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+
+                        <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
+
                         <StackPanel Padding="16,12" Spacing="6">
                             <Grid ColumnSpacing="14">
                                 <Grid.ColumnDefinitions>
